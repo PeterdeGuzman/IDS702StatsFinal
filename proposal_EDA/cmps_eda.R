@@ -40,8 +40,6 @@ tile_table <-  data %>% group_by(Q29, Q271) %>%
   spread(Q29, n)
 
 contingency_table <- table(data$Q29, data$Q271)
-
-print(contingency_table)
 contingency_df <- as.data.frame(contingency_table)
 contingency_df <- contingency_df %>% mutate(Share = (Freq/sum(Freq)))
 

@@ -3,12 +3,18 @@ title: "Project Proposal"
 author: "Sizhe Chen, Naikyah Dhariwala, Peter de Guzman, Jennifer Li"
 subtitle: "Due November 17 at 11:59pm"
 format: pdf
+header-includes:
+      - \usepackage{float}
+      - \floatplacement{table}{H}
 ---
 
 #### Load Packages
 
 ```{r load-packages, message = FALSE, warning = FALSE}
 library(tidyverse)
+library(ggplot2)
+library(formattable)
+library(scales)
 ```
 
 # Dataset 1 (top choice)
@@ -23,22 +29,26 @@ The 2020 CMPS was offered in English, Spanish, Chinese (simplified), Chinese (tr
 
 -   Outcome variable (include the name/description and type of variable): The outcome variable is an ordinal variable labeled Q29. The survey question is "Some people are very interested in politics while other people can't stand politics how about you? are you...". The response options are in a five-point scale from "Not at all interested in politics" to "Very interested in politics."
 
+The main predictor variable is "Q271" which asks “How important is being [RACIAL GROUP] to your identity?”. The response options are a five-point scale from "Not at all important" to "Extremely important". Other potential predictors include survey questions on respondent's self-perception of race and discrimination, and their own attitudes towards other racial groups. In addition, there are multiple variables that could be used as demographic controls such as age, gender, education, income, and party identification. The variables not shown in the output include responses to the rest of the 800 survey questions, covering topics such as policy attitudes, civic engagement, and political participation. 
+
 **Research question 2:**
 
 -   Outcome variable (include the name/description and type of variable):
 
 **Load the data and provide a `glimpse()`**:
 
-```{r data-1, warning=FALSE}
+```{r data-1, warning=FALSE, echo=FALSE}
 rm(list=ls())
 load("/Users/pdeguz01/Documents/git/Data/2020 CMPS/DS0001/39096-0001-Data.rda")
 data <- da39096.0001
-data %>% slice_head(n = 100) %>% glimpse()
+reordered_data <- data %>% relocate(Q29, Q271, WEIGHT, 
+                                    AGE1_HID, AGE2_HID, .after = DATE)
+reordered_data %>% slice_head(n = 50) %>% str()
 ```
 
 **Exploratory Plots:**
 
-```{r plots-1}
+```{r plots-1, echo=FALSE}
 wtd_tableQ29 <- data %>% count(Q29, wt=WEIGHT)
 wtd_tableQ29 <- wtd_tableQ29 %>% mutate('pct' = (n/sum(n, na.rm=TRUE)))
 
@@ -50,19 +60,20 @@ ggplot(wtd_tableQ29, aes(x=Q29, y = pct)) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
 
-
-contingency_table <- table(data$Q29, data$Q271)
+data <- data %>% mutate(Q29_shortened = case_when(Q29 == "(1) Very interested in politics" ~ "Very interested",
+                                                   Q29 == "(2) Somewhat interested" ~ "Somewhat interested",
+                                                   Q29 == "(3) Not that interested in politics" ~ "Not that interested",
+                                                   Q29 == "(4) Not at all interested in politics" ~ "Not at all interested",
+                                                   .default = "Other"))
+contingency_table <- table(data$Q29_shortened, data$Q271)
 contingency_df <- as.data.frame(contingency_table)
 contingency_df <- contingency_df %>% mutate(Share = (Freq/sum(Freq)))
 
-
-
-
 ggplot(contingency_df, aes(x = Var1, y = Var2, fill = Share)) +
   geom_tile() +
-  labs(title="Heatmap of Interest in Politics and Racial Identity", x = "Interest in Politics", y = "Importance of Racial Identity") +
+  labs(title="Interest in Politics and Racial Identity", x = "Interest in Politics", y = "Importance of Racial Identity") +
   theme_minimal() + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.4, vjust = 0.5)) +
   scale_fill_continuous(low = "white", high = "blue", labels = percent_format(scale = 100)) 
 ```
 

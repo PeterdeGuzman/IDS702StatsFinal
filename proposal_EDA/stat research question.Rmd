@@ -1,0 +1,68 @@
+---
+title: "stat final project"
+output: pdf_document
+date: "2024-11-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(prettyR)
+```
+
+```{r}
+load("/Users/chensi/Desktop/MIDS/Fall 2024/IDS 702/ICPSR_39096/DS0001/39096-0001-Data.rda")  
+data <- da39096.0001
+```
+
+**Research question 2:** Controlling for other demographic variables such as age and gender,How do experiences with racism influence the importance respondents place on policy issues related to racial and ethnic discrimination? - Outcome variable (include the name/description and type of variable): Stopping discrimination against racial/ethnic minorities (Q1R5) — a binary variable indicating whether respondents view it as an important issue.
+
+**Variable Type:** Binary.
+
+**Interaction Term Idea:** Include an interaction term between race/ethnicity (S2RACER) and experiences with racism to see if the influence of racism experiences differs across racial/ethnic groups.
+
+**Exploratory Plots:**
+
+```{r}
+data$Q1R5_cleaned <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", data$Q1R5))
+
+data$Q1R5_cleaned <- factor(data$Q1R5_cleaned, levels = c(0, 1), labels = c("Not Important", "Important"))
+
+# Check the cleaned variable
+table(data$Q1R5_cleaned)
+
+# Plot the distribution of Q1R5
+ggplot(data, aes(x = Q1R5_cleaned)) +
+  geom_bar(fill = "skyblue") +
+  labs(title = "Importance of Stopping Discrimination Against Racial/Ethnic Minorities",
+       x = "Importance Level",
+       y = "Count") +
+  theme_minimal()
+
+```
+
+```{r}
+data$MAIN_ETH_QUOTA_numeric <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", data$MAIN_ETH_QUOTA))
+data$Race_Ethnicity <- factor(data$MAIN_ETH_QUOTA_numeric,
+                              levels = 1:7,
+                              labels = c("White", "Latino", "Black", "AAPI", "ANAI", "MENA", "NH"))
+table(data$Race_Ethnicity)
+
+# Plot with short-term race labels on the x-axis and percentage labels on the bars
+ggplot(data, aes(x = Race_Ethnicity, fill = Q1R5_cleaned)) +
+  geom_bar(position = "fill") +
+  labs(title = "Importance of Stopping Discrimination by Race/Ethnicity",
+       x = "Race/Ethnicity",
+       y = "Proportion",
+       fill = "Importance Level",
+       caption = "Race/Ethnicity Abbreviations: ANAI = Native American, NH = Native Hawaiian, AAPI = Asian American/Pacific Islander, MENA = Middle Eastern/North African") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal() +
+  geom_text(aes(label = scales::percent(..count../sum(..count..))),
+            stat = "count", 
+            position = position_fill(vjust = 0.5),
+            color = "white")
+```

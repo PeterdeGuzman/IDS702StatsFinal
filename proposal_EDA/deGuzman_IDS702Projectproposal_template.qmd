@@ -31,9 +31,16 @@ The 2020 CMPS was offered in English, Spanish, Chinese (simplified), Chinese (tr
 
 The main predictor variable is "Q271" which asks “How important is being [RACIAL GROUP] to your identity?”. The response options are a five-point scale from "Not at all important" to "Extremely important". Other potential predictors include survey questions on respondent's self-perception of race and discrimination, and their own attitudes towards other racial groups. In addition, there are multiple variables that could be used as demographic controls such as age, gender, education, income, and party identification. The variables not shown in the output include responses to the rest of the 800 survey questions, covering topics such as policy attitudes, civic engagement, and political participation. 
 
-**Research question 2:**
+**Variable Type**: Ordinal
 
--   Outcome variable (include the name/description and type of variable):
+
+**Research question 2:** Controlling for other demographic variables such as age and gender,How do experiences with racism influence the importance respondents place on policy issues related to racial and ethnic discrimination?
+
+- Outcome variable (include the name/description and type of variable): Stopping discrimination against racial/ethnic minorities (Q1R5) — a binary variable indicating whether respondents view it as an important issue.
+
+**Variable Type:** Binary.
+
+**Interaction Term Idea:** Include an interaction term between race/ethnicity (S2RACER) and experiences with racism to see if the influence of racism experiences differs across racial/ethnic groups.
 
 **Load the data and provide a `glimpse()`**:
 
@@ -48,11 +55,17 @@ reordered_data %>% slice_head(n = 50) %>% str()
 
 **Exploratory Plots:**
 
-```{r plots-1, echo=FALSE}
-wtd_tableQ29 <- data %>% count(Q29, wt=WEIGHT)
-wtd_tableQ29 <- wtd_tableQ29 %>% mutate('pct' = (n/sum(n, na.rm=TRUE)))
+```{r plots-1, echo=FALSE, warning=FALSE}
 
-ggplot(wtd_tableQ29, aes(x=Q29, y = pct)) +
+
+data <- data %>% mutate(Q29_shortened = case_when(Q29 == "(1) Very interested in politics" ~ "Very interested",
+                                                   Q29 == "(2) Somewhat interested" ~ "Somewhat interested",
+                                                   Q29 == "(3) Not that interested in politics" ~ "Not that interested",
+                                                   Q29 == "(4) Not at all interested in politics" ~ "Not at all interested",
+                                                   .default = "Other"))
+wtd_tableQ29 <- data %>% count(Q29_shortened, wt=WEIGHT)
+wtd_tableQ29 <- wtd_tableQ29 %>% mutate('pct' = (n/sum(n, na.rm=TRUE)))
+ggplot(wtd_tableQ29, aes(x=Q29_shortened, y = pct)) +
   geom_bar(stat="identity", fill = "orange") +
   geom_text(aes(label=percent(pct)), vjust=1.6, color="white", size =3.5) +
   labs(title = "Reported Interest in Politics", 
@@ -60,11 +73,7 @@ ggplot(wtd_tableQ29, aes(x=Q29, y = pct)) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
 
-data <- data %>% mutate(Q29_shortened = case_when(Q29 == "(1) Very interested in politics" ~ "Very interested",
-                                                   Q29 == "(2) Somewhat interested" ~ "Somewhat interested",
-                                                   Q29 == "(3) Not that interested in politics" ~ "Not that interested",
-                                                   Q29 == "(4) Not at all interested in politics" ~ "Not at all interested",
-                                                   .default = "Other"))
+
 contingency_table <- table(data$Q29_shortened, data$Q271)
 contingency_df <- as.data.frame(contingency_table)
 contingency_df <- contingency_df %>% mutate(Share = (Freq/sum(Freq)))
@@ -75,6 +84,40 @@ ggplot(contingency_df, aes(x = Var1, y = Var2, fill = Share)) +
   theme_minimal() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 0.4, vjust = 0.5)) +
   scale_fill_continuous(low = "white", high = "blue", labels = percent_format(scale = 100)) 
+
+data$Q1R5_cleaned <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", data$Q1R5))
+
+data$Q1R5_cleaned <- factor(data$Q1R5_cleaned, levels = c(0, 1), labels = c("Not Important", "Important"))
+
+# Plot the distribution of Q1R5
+ggplot(data, aes(x = Q1R5_cleaned)) +
+  geom_bar(fill = "skyblue") +
+  labs(title = "Importance of Stopping Discrimination Against Racial/Ethnic Minorities",
+       x = "Importance Level",
+       y = "Count") +
+  theme_minimal()
+
+
+
+data$MAIN_ETH_QUOTA_numeric <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", data$MAIN_ETH_QUOTA))
+data$Race_Ethnicity <- factor(data$MAIN_ETH_QUOTA_numeric,
+                              levels = 1:7,
+                              labels = c("White", "Latino", "Black", "AAPI", "ANAI", "MENA", "NH"))
+
+# Plot with short-term race labels on the x-axis and percentage labels on the bars
+ggplot(data, aes(x = Race_Ethnicity, fill = Q1R5_cleaned)) +
+  geom_bar(position = "fill") +
+  labs(title = "Importance of Stopping Discrimination by Race/Ethnicity",
+       x = "Race/Ethnicity",
+       y = "Proportion",
+       fill = "Importance Level",
+       caption = "Race/Ethnicity Abbreviations: ANAI = Native American, NH = Native Hawaiian, AAPI = Asian American/Pacific Islander, MENA = Middle Eastern/North African") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal() +
+  geom_text(aes(label = scales::percent(after_stat(count)/sum(after_stat(count)))),
+            stat = "count", 
+            position = position_fill(vjust = 0.5),
+            color = "white")
 ```
 
 # Dataset 2

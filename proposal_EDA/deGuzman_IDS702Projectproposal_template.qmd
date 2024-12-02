@@ -113,11 +113,7 @@ ggplot(data, aes(x = Race_Ethnicity, fill = Q1R5_cleaned)) +
        fill = "Importance Level",
        caption = "Race/Ethnicity Abbreviations: ANAI = Native American, NH = Native Hawaiian, AAPI = Asian American/Pacific Islander, MENA = Middle Eastern/North African") +
   scale_y_continuous(labels = scales::percent) +
-  theme_minimal() +
-  geom_text(aes(label = scales::percent(after_stat(count)/sum(after_stat(count)))),
-            stat = "count", 
-            position = position_fill(vjust = 0.5),
-            color = "white")
+  theme_minimal() 
 ```
 
 # Dataset 2

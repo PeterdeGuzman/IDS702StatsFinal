@@ -8,19 +8,151 @@ editor: visual
 Conducting EDA on the 2020 CMPS dataset for Research Question 1
 
 # Loading data
+```{r, echo=FALSE}
+file_path <- "/Users/pdeguz01/Documents/git/Data/2020 CMPS/DS0001/39096-0001-Data.rda"
+# Load data 
+load(file_path)
+data <- da39096.0001
+rm(da39096.0001)
+```
 
 # Selecting Variables
 
+Need to include the outcome variable, which is an ordinal variable Q29.
+Main predictor variable is Q271 "How important is being [RACIAL GROUP] to your identity?"
+```{r}
+required_cols <- c("Q29", # Outcome Variable; interest in politics
+                   "Q271", # Predictor Variable; importance of race to identity
+                   "S3", # Orientation
+                   "S3B", # Gender
+                   "S5_AGE", # Age Category
+                   "S13", # Educational Attainment
+                   "S14", # Community Type
+                   "S7", # Nativity
+                   "Q21", # Party ID
+                   "S2_M", # Multiracial
+                   
+                   # Religion-related variables
+                   "Q58R1",            # Catholic
+                   "Q58R2",            # Protestant
+                   "Q58R3",            # Other Christian
+                   "Q58R4",            # Jewish
+                   "Q58R5",            # Muslim
+                   "Q58R6",            # Hindu
+                   "Q58R7",            # Buddhist
+                   "Q58R8",            # Mormon/LDS
+                   "Q58R9",            # Folk Religion
+                   "Q58R10",           # Daoist
+                   "Q58R11",           # Shamanism
+                   "Q58R12",           # Ancestral Religion
+                   "Q58R13",           # Spiritual but not religious
+                   "Q58R14",           # Atheist
+                   "Q58R15",            # Agnostic
+                   
+                   # Variables capturing experiences with racism
+                   "Q627", # Treated unfairly or discriminated against ,
+                   "Q628", # Location of discrimination
+                   "Q629R1" # Unfair treatment due to racial background/ethnicity
+                   )
+                 
+                   
+                   
+# Create new df
+data_filtered <- data[, required_cols]
+head(data_filtered)
+
+
+
+```
+
+
+
+
+
+
 # Cleaning Variables
 
+```{r}
+# Convert the required columns to factors
+data_filtered[required_cols] <- lapply(data_filtered[required_cols], as.factor)
+
+# Verify that the columns have been successfully converted to factors
+str(data_filtered[required_cols])
+head(data_filtered)
+```
+Cleaning and Recoding Religion Variables
+```{r}
+# Convert individual religion columns to numeric
+for (i in 1:15) {
+  col_name <- paste0("Q58R", i, "_numeric")
+  dataset_new[[col_name]] <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", dataset_new[[paste0("Q58R", i)]]))
+}
+
+# Create a new Religion variable
+dataset_new$Religion <- "None"
+dataset_new$Religion[dataset_new$Q58R1_numeric == 1] <- "Catholic"
+dataset_new$Religion[dataset_new$Q58R2_numeric == 1] <- "Protestant"
+dataset_new$Religion[dataset_new$Q58R3_numeric == 1] <- "Other Christian"
+dataset_new$Religion[dataset_new$Q58R4_numeric == 1] <- "Jewish"
+dataset_new$Religion[dataset_new$Q58R5_numeric == 1] <- "Muslim"
+dataset_new$Religion[dataset_new$Q58R6_numeric == 1] <- "Hindu"
+dataset_new$Religion[dataset_new$Q58R7_numeric == 1] <- "Buddhist"
+dataset_new$Religion[dataset_new$Q58R8_numeric == 1] <- "Mormon/LDS"
+dataset_new$Religion[dataset_new$Q58R9_numeric == 1] <- "Folk Religion"
+dataset_new$Religion[dataset_new$Q58R10_numeric == 1] <- "Daoist"
+dataset_new$Religion[dataset_new$Q58R11_numeric == 1] <- "Shamanism"
+dataset_new$Religion[dataset_new$Q58R12_numeric == 1] <- "Ancestral Religion"
+dataset_new$Religion[dataset_new$Q58R13_numeric == 1] <- "Spiritual but not religious"
+dataset_new$Religion[dataset_new$Q58R14_numeric == 1] <- "Atheist"
+dataset_new$Religion[dataset_new$Q58R15_numeric == 1] <- "Agnostic"
+
+# Convert Religion to a factor
+dataset_new$Religion <- factor(dataset_new$Religion,
+                               levels = c("Catholic", "Protestant", "Other Christian", "Jewish", "Muslim",
+                                          "Hindu", "Buddhist", "Mormon/LDS", "Folk Religion",
+                                          "Daoist", "Shamanism", "Ancestral Religion",
+                                          "Spiritual but not religious", "Atheist", "Agnostic", "None"))
+
+# Create a table of counts for the new Religion variable
+table(dataset_new$Religion)
+
+
+```
+
+Removing depracated Religion variables
+```{r}
+# Remove redundant religion columns (Q58R1 to Q58R15 and their numeric versions)
+redundant_cols <- c(
+  "Q58R1", "Q58R2", "Q58R3", "Q58R4", "Q58R5", "Q58R6", "Q58R7", "Q58R8", 
+  "Q58R9", "Q58R10", "Q58R11", "Q58R12", "Q58R13", "Q58R14", "Q58R15",
+  "Q58R1_numeric", "Q58R2_numeric", "Q58R3_numeric", "Q58R4_numeric", 
+  "Q58R5_numeric", "Q58R6_numeric", "Q58R7_numeric", "Q58R8_numeric", 
+  "Q58R9_numeric", "Q58R10_numeric", "Q58R11_numeric", "Q58R12_numeric", 
+  "Q58R13_numeric", "Q58R14_numeric", "Q58R15_numeric"
+)
+
+# Remove redundant columns from the dataset
+dataset_clean <- dataset_new[, !(names(dataset_new) %in% redundant_cols)]
+
+# Take a look at the updated dataset
+head(dataset_clean)
+```
+
+Cleaning and Recoding Other Variables
+
+
 # Analysis of Missing Data
+```{r}
+
+```
 
 # Save cleaned data
+```{r}
+
+```
+
 
 # Creating summary table
+```{r}
 
-# Running chi-square tests
-
-# Fitting OLR Model
-
-# Fitting MLR Model
+```

@@ -1,0 +1,795 @@
+---
+title: "EDA_Naki"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+# Loading dataset
+
+```{r}
+#| echo: false
+# Set the file path
+file_path <- "/Users/nakiyahdhariwala/StatsProject/39096-0001-Data.rda"
+
+# Load the RDA file
+load(file_path)
+
+# List objects loaded into the environment
+ls()
+
+# Access the dataset (replace `da39096.0001` with the actual name found in `ls()`)
+dataset <- da39096.0001  # Use the correct object name
+
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+```{r}
+# Exploring the data
+
+#colnames(dataset)
+head(dataset)
+```
+
+# Variable selection
+
+```{r}
+required_cols <- c("Q1R5", # Outcome Variable; Stopping discrimination against racial/ethnic minorities (Binary: 0 = Not important, 1 = Important).
+                   "S2_RACE_PRIME",   # Primary Race
+                   # "MAIN_ETH_QUOTA",  # Ethnic Quota
+                   "S3",              # Orientation
+                   "S3B",             # Gender
+                   "S4",              # Current state of residence
+                   "S5_AGE",          # Age categories
+                   "S13",             # Highest level of education
+                   "S14",             # Community lived in
+                   
+                   # Variables capturing experiences with racism
+                   # Create stacked bar charts for this section to identify which variables we shoul look into further 
+                   "Q627",            # Treated unfairly or discriminated against
+                   # "Q628",            # Location of discrimination
+                   "Q629R1",          # Unfair treatment due to racial background/ethnicity
+                   "Q629R2",          # Unfair treatment due to skin color
+                   "Q629R3",          # Unfair treatment due to gender
+                   "Q629R4",          # Unfair treatment due to sexuality/orientation
+                   "Q629R5",          # Unfair treatment due to immigration status
+                   "Q629R6",          # Unfair treatment due to religion
+                   "Q629R7",          # Unfair treatment due to accent
+                   
+                   "Q633",            # Discrimination impact on life satisfaction
+                   # Religion-related variables
+                   "Q58R1",            # Catholic
+                   "Q58R2",            # Protestant
+                   "Q58R3",            # Other Christian
+                   "Q58R4",            # Jewish
+                   "Q58R5",            # Muslim
+                   "Q58R6",            # Hindu
+                   "Q58R7",            # Buddhist
+                   "Q58R8",            # Mormon/LDS
+                   "Q58R9",            # Folk Religion
+                   "Q58R10",           # Daoist
+                   "Q58R11",           # Shamanism
+                   "Q58R12",           # Ancestral Religion
+                   "Q58R13",           # Spiritual but not religious
+                   "Q58R14",           # Atheist
+                   "Q58R15")            # Agnostic
+
+
+# Create a new dataframe with selected variables
+dataset_new <- dataset[, required_cols]
+head(dataset_new)
+
+```
+
+# Convert variables
+
+```{r}
+# Convert the required columns to factors
+dataset_new[required_cols] <- lapply(dataset_new[required_cols], as.factor)
+
+# Verify that the columns have been successfully converted to factors
+str(dataset_new[required_cols])
+head(dataset_new)
+```
+
+```{r}
+# Convert individual religion columns to numeric
+for (i in 1:15) {
+  col_name <- paste0("Q58R", i, "_numeric")
+  dataset_new[[col_name]] <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", dataset_new[[paste0("Q58R", i)]]))
+}
+
+# Create a new Religion variable
+dataset_new$Religion <- "None"
+dataset_new$Religion[dataset_new$Q58R1_numeric == 1] <- "Catholic"
+dataset_new$Religion[dataset_new$Q58R2_numeric == 1] <- "Protestant"
+dataset_new$Religion[dataset_new$Q58R3_numeric == 1] <- "Other Christian"
+dataset_new$Religion[dataset_new$Q58R4_numeric == 1] <- "Jewish"
+dataset_new$Religion[dataset_new$Q58R5_numeric == 1] <- "Muslim"
+dataset_new$Religion[dataset_new$Q58R6_numeric == 1] <- "Hindu"
+dataset_new$Religion[dataset_new$Q58R7_numeric == 1] <- "Buddhist"
+dataset_new$Religion[dataset_new$Q58R8_numeric == 1] <- "Mormon/LDS"
+dataset_new$Religion[dataset_new$Q58R9_numeric == 1] <- "Folk Religion"
+dataset_new$Religion[dataset_new$Q58R10_numeric == 1] <- "Daoist"
+dataset_new$Religion[dataset_new$Q58R11_numeric == 1] <- "Shamanism"
+dataset_new$Religion[dataset_new$Q58R12_numeric == 1] <- "Ancestral Religion"
+dataset_new$Religion[dataset_new$Q58R13_numeric == 1] <- "Spiritual but not religious"
+dataset_new$Religion[dataset_new$Q58R14_numeric == 1] <- "Atheist"
+dataset_new$Religion[dataset_new$Q58R15_numeric == 1] <- "Agnostic"
+
+# Convert Religion to a factor
+dataset_new$Religion <- factor(dataset_new$Religion,
+                               levels = c("Catholic", "Protestant", "Other Christian", "Jewish", "Muslim",
+                                          "Hindu", "Buddhist", "Mormon/LDS", "Folk Religion",
+                                          "Daoist", "Shamanism", "Ancestral Religion",
+                                          "Spiritual but not religious", "Atheist", "Agnostic", "None"))
+
+# Create a table of counts for the new Religion variable
+table(dataset_new$Religion)
+
+```
+
+```{r}
+# Remove redundant religion columns (Q58R1 to Q58R15 and their numeric versions)
+redundant_cols <- c(
+  "Q58R1", "Q58R2", "Q58R3", "Q58R4", "Q58R5", "Q58R6", "Q58R7", "Q58R8", 
+  "Q58R9", "Q58R10", "Q58R11", "Q58R12", "Q58R13", "Q58R14", "Q58R15",
+  "Q58R1_numeric", "Q58R2_numeric", "Q58R3_numeric", "Q58R4_numeric", 
+  "Q58R5_numeric", "Q58R6_numeric", "Q58R7_numeric", "Q58R8_numeric", 
+  "Q58R9_numeric", "Q58R10_numeric", "Q58R11_numeric", "Q58R12_numeric", 
+  "Q58R13_numeric", "Q58R14_numeric", "Q58R15_numeric"
+)
+
+# Remove redundant columns from the dataset
+dataset_clean <- dataset_new[, !(names(dataset_new) %in% redundant_cols)]
+
+# Take a look at the updated dataset
+head(dataset_clean)
+```
+
+# Missing values
+
+```{r}
+# Check the number of missing values for each variable
+missing_summary <- colSums(is.na(dataset_clean))
+missing_summary
+
+# Finding proportion of Missing Data
+missing_proportion <- colSums(is.na(dataset_clean)) / nrow(dataset_clean)
+missing_proportion
+
+# Finding total missing data proportion
+overall_missing <- sum(is.na(dataset_new)) / (nrow(dataset_new) * ncol(dataset_new))
+overall_missing
+
+# Omiting missing data (Not gonna do it for now)
+# dataset_clean <- na.omit(dataset_clean)
+# head(dataset_clean)
+```
+
+We can see that 9180 values are missing from every column that relates to questions of unfair treatment. Upon further investigation we find that missing values account for approximately 52% of the total column data. For now, we decide not to do anything and proceed further with the analysis
+
+# Cleaned version
+
+```{r}
+# (Outcome) Distribution of the proportion of people who view "Stopping discrimination against racial/ethnic minorities" as an important issue
+table(dataset_new$Q1R5) / nrow(dataset_new)
+```
+
+```{r}
+#Summarize counts and proportions for every variable
+
+#lapply(dataset_new[, -1], table)
+
+```
+
+```{r}
+# Function to create a summary table with counts and proportions
+create_summary_table <- function(variable, var_name) {
+  counts <- table(variable)
+  if (length(counts) == 0) {
+    return(data.frame(Variable = character(), Level = character(), Count = numeric(), Proportion = numeric()))
+  }
+  proportions <- prop.table(counts)
+  summary_df <- data.frame(
+    Variable = var_name,
+    Level = names(counts),
+    Count = as.numeric(counts),
+    Proportion = round(as.numeric(proportions), 4)
+  )
+  return(summary_df)
+}
+
+# Apply the function to each variable of interest in the cleaned dataset
+categorical_vars <- names(dataset_clean)
+
+# Initialize an empty data frame to store all summary tables
+full_summary_table <- data.frame(Variable = character(), Level = character(), Count = numeric(), Proportion = numeric())
+
+# Iterate through each variable and generate the summary table
+for (var in categorical_vars) {
+  summary_table <- create_summary_table(dataset_clean[[var]], var)
+  full_summary_table <- rbind(full_summary_table, summary_table)
+}
+
+# Print the full summary table
+full_summary_table
+
+
+```
+
+| **Variable** | **Level** | **Count** | **Proportion** |
+|------------------|--------------------|------------------|------------------|
+| Q1R5 | \(0\) NO TO: Stopping discrimination against racial/ethnic minorities | 5728 | 0.6848 |
+| Q1R5 | \(1\) Stopping discrimination against racial/ethnic minorities | 2637 | 0.3152 |
+| S2_RACE_PRIME | \(1\) White | 1310 | 0.1566 |
+| S2_RACE_PRIME | \(2\) Hispanic or Latino | 1836 | 0.2195 |
+| S2_RACE_PRIME | \(3\) Black or African American | 2733 | 0.3267 |
+| S2_RACE_PRIME | \(4\) Asian American | 1834 | 0.2192 |
+| S2_RACE_PRIME | \(5\) American Indian/Native American | 357 | 0.0427 |
+| S2_RACE_PRIME | \(6\) Arab, Middle Eastern or North African | 145 | 0.0173 |
+| S2_RACE_PRIME | \(7\) Native Hawaiian | 39 | 0.0047 |
+| S2_RACE_PRIME | \(8\) Not Hawaiian, but other Pacific Islander | 111 | 0.0133 |
+| MAIN_ETH_QUOTA | \(1\) White | 955 | 0.1142 |
+| MAIN_ETH_QUOTA | \(2\) Latino | 2007 | 0.2399 |
+| MAIN_ETH_QUOTA | \(3\) Black | 2578 | 0.3082 |
+| MAIN_ETH_QUOTA | \(4\) AAPI | 1898 | 0.2269 |
+| MAIN_ETH_QUOTA | \(5\) Native American | 552 | 0.066 |
+| MAIN_ETH_QUOTA | \(6\) MENA | 176 | 0.021 |
+| MAIN_ETH_QUOTA | \(7\) Native Hawaiian | 199 | 0.0238 |
+| S3 | \(01\) Straight, that is, not gay or lesbian | 7037 | 0.8412 |
+| S3 | \(02\) Gay or lesbian | 391 | 0.0467 |
+| S3 | \(03\) Bisexual | 587 | 0.0702 |
+| S3 | \(04\) Something else (Specify) | 207 | 0.0247 |
+| S3 | \(88\) Refused | 90 | 0.0108 |
+| S3 | \(99\) I don | 53 | 0.0063 |
+| S3B | \(1\) Man | 3388 | 0.405 |
+| S3B | \(2\) Woman | 4844 | 0.5791 |
+| S3B | \(3\) Non-binary | 109 | 0.013 |
+| S3B | \(4\) Something else (Specify) | 24 | 0.0029 |
+| S4 | \(01\) Alaska | 18 | 0.0022 |
+| S4 | \(02\) Alabama | 120 | 0.0143 |
+| S4 | \(03\) Arizona | 207 | 0.0247 |
+| S4 | \(04\) Arkansas | 74 | 0.0088 |
+| S4 | \(05\) California | 1456 | 0.1741 |
+| S4 | \(06\) Colorado | 136 | 0.0163 |
+| S4 | \(07\) Connecticut | 77 | 0.0092 |
+| S4 | \(08\) Delaware | 28 | 0.0033 |
+| S4 | \(09\) District of Columbia | 43 | 0.0051 |
+| S4 | \(10\) Florida | 677 | 0.0809 |
+| S4 | \(11\) Georgia | 349 | 0.0417 |
+| S4 | \(12\) Hawaii | 84 | 0.01 |
+| S4 | \(13\) Idaho | 15 | 0.0018 |
+| S4 | \(14\) Illinois | 333 | 0.0398 |
+| S4 | \(15\) Indiana | 99 | 0.0118 |
+| S4 | \(16\) Iowa | 27 | 0.0032 |
+| S4 | \(17\) Kansas | 39 | 0.0047 |
+| S4 | \(18\) Kentucky | 74 | 0.0088 |
+| S4 | \(19\) Louisiana | 112 | 0.0134 |
+| S4 | \(20\) Maine | 8 | 0.001 |
+| S4 | \(21\) Maryland | 208 | 0.0249 |
+| S4 | \(22\) Massachusetts | 142 | 0.017 |
+| S4 | \(23\) Michigan | 182 | 0.0218 |
+| S4 | \(24\) Minnesota | 79 | 0.0094 |
+| S4 | \(25\) Mississippi | 68 | 0.0081 |
+| S4 | \(26\) Missouri | 89 | 0.0106 |
+| S4 | \(27\) Montana | 8 | 0.001 |
+| S4 | \(28\) Nebraska | 24 | 0.0029 |
+| S4 | \(29\) Nevada | 92 | 0.011 |
+| S4 | \(30\) New Hampshire | 13 | 0.0016 |
+| S4 | \(31\) New Jersey | 248 | 0.0296 |
+| S4 | \(32\) New Mexico | 56 | 0.0067 |
+| S4 | \(33\) New York | 593 | 0.0709 |
+| S4 | \(34\) North Carolina | 258 | 0.0308 |
+| S4 | \(35\) North Dakota | 11 | 0.0013 |
+| S4 | \(36\) Ohio | 235 | 0.0281 |
+| S4 | \(37\) Oklahoma | 88 | 0.0105 |
+| S4 | \(38\) Oregon | 74 | 0.0088 |
+| S4 | \(39\) Pennsylvania | 231 | 0.0276 |
+| S4 | \(40\) Rhode Island | 16 | 0.0019 |
+| S4 | \(41\) South Carolina | 99 | 0.0118 |
+| S4 | \(42\) South Dakota | 13 | 0.0016 |
+| S4 | \(43\) Tennessee | 135 | 0.0161 |
+| S4 | \(44\) Texas | 862 | 0.103 |
+| S4 | \(45\) Utah | 46 | 0.0055 |
+| S4 | \(46\) Vermont | 7 | 0.0008 |
+| S4 | \(47\) Virginia | 210 | 0.0251 |
+| S4 | \(48\) Washington | 202 | 0.0241 |
+| S4 | \(49\) West Virginia | 19 | 0.0023 |
+| S4 | \(50\) Wisconsin | 78 | 0.0093 |
+| S4 | \(51\) Wyoming | 3 | 0.0004 |
+| S5_AGE | \(1\) 16-17 | 0 | 0.0 |
+| S5_AGE | \(2\) 18-29 | 2150 | 0.257 |
+| S5_AGE | \(3\) 30-39 | 1639 | 0.1959 |
+| S5_AGE | \(4\) 40-49 | 1376 | 0.1645 |
+| S5_AGE | \(5\) 50-59 | 1289 | 0.1541 |
+| S5_AGE | \(6\) 60-69 | 1289 | 0.1541 |
+| S5_AGE | \(7\) 70+ | 622 | 0.0744 |
+| S13 | \(1\) Grades 1-8 | 58 | 0.0069 |
+| S13 | \(2\) Some High School, but did not graduate | 292 | 0.0349 |
+| S13 | \(3\) High School graduate or GED | 1335 | 0.1596 |
+| S13 | \(4\) Some college | 1834 | 0.2192 |
+| S13 | \(5\) Associates, 2-year degree | 960 | 0.1148 |
+| S13 | \(6\) Bachelors, 4-year degree | 2210 | 0.2642 |
+| S13 | \(7\) Post-graduate degree | 1676 | 0.2004 |
+| S14 | \(1\) Large urban area | 2517 | 0.3009 |
+| S14 | \(2\) Large suburb near large city | 2793 | 0.3339 |
+| S14 | \(3\) Small suburb near small town or city | 1331 | 0.1591 |
+| S14 | \(4\) Small town or small city | 1130 | 0.1351 |
+| S14 | \(5\) Rural area | 594 | 0.071 |
+| Q627 | \(1\) Yes | 8365 | 1.0 |
+| Q627 | \(2\) No | 0 | 0.0 |
+| Q629R1 | \(0\) NO TO: Racial background or ethnicity | 2947 | 0.3523 |
+| Q629R1 | \(1\) Racial background or ethnicity | 5418 | 0.6477 |
+| Q629R2 | \(0\) NO TO: Skin color | 4040 | 0.483 |
+| Q629R2 | \(1\) Skin color | 4325 | 0.517 |
+| Q629R3 | \(0\) NO TO: Gender | 5340 | 0.6384 |
+| Q629R3 | \(1\) Gender | 3025 | 0.3616 |
+| Q629R4 | \(0\) NO TO: Sexuality or sexual orientation | 7219 | 0.863 |
+| Q629R4 | \(1\) Sexuality or sexual orientation | 1146 | 0.137 |
+| Q629R5 | \(0\) NO TO: Immigration status | 7718 | 0.9227 |
+| Q629R5 | \(1\) Immigration status | 647 | 0.0773 |
+| Q629R6 | \(0\) NO TO: Religion | 7299 | 0.8726 |
+| Q629R6 | \(1\) Religion | 1066 | 0.1274 |
+| Q629R7 | \(0\) NO TO: Accent, regardless of whether or not you have an accent | 6881 | 0.8226 |
+| Q629R7 | \(1\) Accent, regardless of whether or not you have an accent | 1484 | 0.1774 |
+| Q633 | \(1\) A lot | 997 | 0.1192 |
+| Q633 | \(2\) Some | 2002 | 0.2393 |
+| Q633 | \(3\) A little | 2964 | 0.3543 |
+| Q633 | \(4\) Not at all | 1908 | 0.2281 |
+| Q633 | \(5\) Don | 426 | 0.0509 |
+| Q633 | \(6\) Refused | 68 | 0.0081 |
+| Religion | Catholic | 1484 | 0.1774 |
+| Religion | Protestant | 1901 | 0.2273 |
+| Religion | Other Christian | 931 | 0.1113 |
+| Religion | Jewish | 144 | 0.0172 |
+| Religion | Muslim | 265 | 0.0317 |
+| Religion | Hindu | 190 | 0.0227 |
+| Religion | Buddhist | 231 | 0.0276 |
+| Religion | Mormon/LDS | 50 | 0.0060 |
+| Religion | Folk Religion | 15 | 0.0018 |
+| Religion | Daoist | 11 | 0.0013 |
+| Religion | Shamanism | 17 | 0.0020 |
+| Religion | Ancestral Religion | 51 | 0.0061 |
+| Religion | Spiritual but not religious | 787 | 0.0941 |
+| Religion | Atheist | 444 | 0.0531 |
+| Religion | Agnostic | 601 | 0.0718 |
+| Religion | None | 1243 | 0.1486 |
+
+# Visualization
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+```
+
+# `Q627` vs `Q1R5`: Experience of Racism vs Stopping Discrimination
+
+```{r}
+ggplot(dataset_clean, aes(x = Q627, fill = Q1R5)) +
+  geom_bar(position = "fill") +
+  labs(
+    title = "Q627 vs Q1R5",
+    y = "Proportion",
+    x = "Q627 (Experience of Racism)",
+    fill = "Q1R5 (Stopping Discrimination)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_minimal()
+
+```
+
+# `MAIN_ETH_QUOTA` vs `Q1R5`: Ethnic Quota vs Stopping Discrimination
+
+```{r}
+ggplot(dataset_clean, aes(x = MAIN_ETH_QUOTA, fill = Q1R5)) +
+  geom_bar(position = "fill") +
+  labs(
+    title = "MAIN_ETH_QUOTA vs Q1R5",
+    y = "Proportion",
+    x = "MAIN_ETH_QUOTA (Ethnic Quota)",
+    fill = "Q1R5 (Stopping Discrimination)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    plot.title = element_text(hjust = 0.5)
+  )
+```
+
+# `S3B` vs `Q1R5`: Gender vs Stopping Discrimination
+
+```{r}
+ggplot(dataset_clean, aes(x = S3B, fill = Q1R5)) +
+  geom_bar(position = "fill") +
+  labs(
+    title = "S3B vs Q1R5",
+    y = "Proportion",
+    x = "S3B (Gender)",
+    fill = "Q1R5 (Stopping Discrimination)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    plot.title = element_text(hjust = 0.5)
+  )
+```
+
+# `S2_RACE_PRIME` vs `Q1R5`: Primary Race vs Stopping Discrimination
+
+```{r}
+ggplot(dataset_clean, aes(x = S2_RACE_PRIME, fill = Q1R5)) +
+  geom_bar(position = "fill") +
+  labs(
+    title = "S2_RACE_PRIME vs Q1R5",
+    y = "Proportion",
+    x = "S2_RACE_PRIME (Primary Race)",
+    fill = "Q1R5 (Stopping Discrimination)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_minimal()+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+```
+
+# `S5_AGE` vs `Q1R5`: Age vs Stopping Discrimination
+
+```{r}
+ggplot(dataset_clean, aes(x = S5_AGE, fill = Q1R5)) +
+  geom_bar(position = "fill") +
+  labs(
+    title = "S5_AGE vs Q1R5",
+    y = "Proportion",
+    x = "S5_AGE (Age Group)",
+    fill = "Q1R5 (Stopping Discrimination)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_minimal()+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+```
+
+# `S14` vs `Q1R5`: Community Type vs Stopping Discrimination
+
+```{r}
+ggplot(dataset_clean, aes(x = S14, fill = Q1R5)) +
+  geom_bar(position = "fill") +
+  labs(
+    title = "S14 vs Q1R5",
+    y = "Proportion",
+    x = "S14 (Community Type)",
+    fill = "Q1R5 (Stopping Discrimination)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_minimal()+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+```
+
+# Plot for `S13` (Education Level)
+
+```{r}
+ggplot(dataset_clean, aes(x = S13, fill = Q1R5)) +
+  geom_bar(position = "fill") +
+  labs(
+    title = "S13 vs Q1R5",
+    y = "Proportion",
+    x = "S13 (Highest Level of Education)",
+    fill = "Q1R5 (Stopping Discrimination)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+```
+
+# Plot for `Q58` (Religion Variables)
+
+```{r}
+ggplot(dataset_clean, aes(x = Religion, fill = Q1R5)) +
+  geom_bar(position = "fill") +
+  labs(
+    title = "Q58 vs Q1R5",
+    y = "Proportion",
+    x = "Religion",
+    fill = "Q1R5 (Stopping Discrimination)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+```
+
+# Plot for `Q633` (Impact of Discrimination on Life Satisfaction)
+
+```{r}
+ggplot(dataset_clean, aes(x = Q633, fill = Q1R5)) +
+  geom_bar(position = "fill") +
+  labs(
+    title = "Q633 vs Q1R5",
+    y = "Proportion",
+    x = "Q633 (Discrimination Impact on Life Satisfaction)",
+    fill = "Q1R5 (Stopping Discrimination)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    plot.title = element_text(hjust = 0.5)
+  )
+```
+
+# Plot for `Q629` (Unfair Treatment Variables)
+
+```{r}
+# Create a sample dataset to use for plotting
+plot_data <- data.frame(
+  Variable = c(rep("Q629R1", 2), rep("Q629R2", 2), rep("Q629R3", 2), rep("Q629R4", 2), rep("Q629R5", 2), rep("Q629R6", 2), rep("Q629R7", 2)),
+  Level = c("(0) NO TO: Racial background or ethnicity", "(1) Racial background or ethnicity",
+            "(0) NO TO: Skin color", "(1) Skin color",
+            "(0) NO TO: Gender", "(1) Gender",
+            "(0) NO TO: Sexuality or sexual orientation", "(1) Sexuality or sexual orientation",
+            "(0) NO TO: Immigration status", "(1) Immigration status",
+            "(0) NO TO: Religion", "(1) Religion",
+            "(0) NO TO: Accent, regardless of whether or not you have an accent", "(1) Accent, regardless of whether or not you have an accent"),
+  Count = c(2947, 5418, 4040, 4325, 5340, 3025, 7219, 1146, 7718, 647, 7299, 1066, 6881, 1484),
+  Proportion = c(0.3523, 0.6477, 0.483, 0.517, 0.6384, 0.3616, 0.863, 0.137, 0.9227, 0.0773, 0.8726, 0.1274, 0.8226, 0.1774)
+)
+
+# Plot for each variable
+ggplot(plot_data, aes(x = Variable, y = Proportion, fill = Level)) +
+  geom_bar(stat = "identity", position = "fill") +
+  labs(title = "Proportions of Different Variables by Level",
+       x = "Variable",
+       y = "Proportion") +
+  scale_y_continuous(labels = scales::percent) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# chi-square
+
+```{r}
+dataset_clean$S5_AGE <- droplevels(dataset_clean$S5_AGE)
+
+# Create a summary table for all categorical variables
+variables <- c("Q1R5", "S2_RACE_PRIME", "MAIN_ETH_QUOTA", "S3", "S3B", "S5_AGE", "S13", "Q627", "Q629R1", "Q629R2", "Q629R3", "Q629R4", "Q629R5", "Q629R6", "Q629R7", "Q633", "Religion")
+
+
+# Chi-square tests for each variable
+chi_square_results <- lapply(variables, function(var) {
+  chisq.test(table(dataset_clean[[var]], dataset_clean$Q1R5))
+})
+
+# Print chi-square results
+names(chi_square_results) <- variables
+print(chi_square_results)
+
+```
+
+| Variable | Chi-Square Statistic | Degrees of Freedom (df) | P-Value | Test Type |
+|---------------|---------------|---------------|---------------|---------------|
+
+|               |        |     |            |                            |
+|---------------|--------|-----|------------|----------------------------|
+| S2_RACE_PRIME | 416.06 | 7   | \< 2.2e-16 | Pearson's Chi-squared test |
+
+|                |        |     |            |                            |
+|----------------|--------|-----|------------|----------------------------|
+| MAIN_ETH_QUOTA | 383.38 | 6   | \< 2.2e-16 | Pearson's Chi-squared test |
+
+|     |        |     |         |                            |
+|-----|--------|-----|---------|----------------------------|
+| S3  | 11.184 | 5   | 0.04786 | Pearson's Chi-squared test |
+
+|     |        |     |           |                            |
+|-----|--------|-----|-----------|----------------------------|
+| S3B | 31.259 | 3   | 7.497e-07 | Pearson's Chi-squared test |
+
+|        |        |     |        |                            |
+|--------|--------|-----|--------|----------------------------|
+| S5_AGE | 6.2621 | 5   | 0.2815 | Pearson's Chi-squared test |
+
+|     |        |     |         |                            |
+|-----|--------|-----|---------|----------------------------|
+| S13 | 13.215 | 6   | 0.03975 | Pearson's Chi-squared test |
+
+|      |     |     |     |                            |
+|------|-----|-----|-----|----------------------------|
+| Q627 | NaN | 1   | NA  | Pearson's Chi-squared test |
+
+|  |  |  |  |  |
+|---------------|---------------|---------------|---------------|---------------|
+| Q629R1 | 114.83 | 1 | \< 2.2e-16 | Pearson's Chi-squared test with Yates' correction |
+
+|  |  |  |  |  |
+|---------------|---------------|---------------|---------------|---------------|
+| Q629R2 | 72.719 | 1 | \< 2.2e-16 | Pearson's Chi-squared test with Yates' correction |
+
+|        |         |     |        |                                                   |
+|---------------|---------------|---------------|---------------|---------------|
+| Q629R3 | 0.41214 | 1   | 0.5209 | Pearson's Chi-squared test with Yates' correction |
+
+|        |        |     |        |                                                   |
+|---------------|---------------|---------------|---------------|---------------|
+| Q629R4 | 1.3169 | 1   | 0.2511 | Pearson's Chi-squared test with Yates' correction |
+
+|        |       |     |           |                                                   |
+|---------------|---------------|---------------|---------------|---------------|
+| Q629R5 | 11.48 | 1   | 0.0007036 | Pearson's Chi-squared test with Yates' correction |
+
+|  |  |  |  |  |
+|---------------|---------------|---------------|---------------|---------------|
+| Q629R6 | 20.113 | 1 | 7.301e-06 | Pearson's Chi-squared test with Yates' correction |
+
+|        |        |     |        |                                                   |
+|---------------|---------------|---------------|---------------|---------------|
+| Q629R7 | 2.6287 | 1   | 0.1049 | Pearson's Chi-squared test with Yates' correction |
+
+|      |        |     |           |                            |
+|------|--------|-----|-----------|----------------------------|
+| Q633 | 70.581 | 5   | 7.759e-14 | Pearson's Chi-squared test |
+
+|          |        |     |           |                            |
+|----------|--------|-----|-----------|----------------------------|
+| Religion | 84.974 | 15  | 8.507e-12 | Pearson's Chi-squared test |
+
+```{r}
+# Model Fitting - Logistic Regression
+# Logistic regression to predict stopping discrimination (Q1R5)
+
+# Create interaction term between MAIN_ETH_QUOTA and Religion
+dataset_clean$interaction_term <- interaction(dataset_clean$MAIN_ETH_QUOTA, dataset_clean$Religion)
+
+```
+
+```{r}
+dataset_clean <- droplevels(dataset_clean)
+dataset_clean <- dataset_clean %>%
+  mutate(across(where(is.character), as.factor))
+# Refitting the logistic regression model without Q627
+model <- glm(Q1R5 ~ S2_RACE_PRIME + MAIN_ETH_QUOTA + S3 + S3B + S5_AGE + S13 + Q629R1 + Q633 + Religion + interaction_term,
+             data = dataset_clean,
+             family = binomial())
+
+# Summary of the model
+summary(model)
+```
+
+### **Interaction Terms**
+
+1.  **Experiences with Racism × Perceptions of Discrimination**:
+
+    -   Interaction between **Q627** (personal experience) and **Q619-Q626** (perceived discrimination toward groups).
+
+2.  **Race/Ethnicity × Social Prioritization**:
+
+    -   Interaction between **S2_RACE** and policy prioritization for racial equity issues (e.g., Q117-Q125).
+
+3.  **Racism Experience × Leadership Perceptions**:
+
+    -   Interaction between **Q627** and perceived efficacy of racial/ethnic leadership (Q159-Q161).
+
+4.  **Interaction (Q627 × S2_RACE)**:
+
+    -   Investigates how the impact of discrimination varies by racial/ethnic group, directly addressing intersectionality.
+
+### **Key Recommendations**
+
+1.  Focus on **Q627**, **Q629R1**, and **S2_RACE** as the core predictors.
+
+2.  Use **interaction terms** (e.g., Q627 × S2_RACE) to explore differences across racial/ethnic groups.
+
+3.  Include **Q633** to capture the subjective impact of discrimination.
+
+4.  Use **perceptions of systemic discrimination (Q619-Q626)** to contextualize personal experiences.
+
+```{r}
+```
+
+```{r echo: false}
+# Creating an interaction term
+# Create interaction term
+dataset$Interaction <- interaction(dataset$Q627, dataset$S2_RACE)
+
+
+
+                   # "S2_RACE_PRIME",   # Primary Race
+                   # "MAIN_ETH_QUOTA",  # Ethnic Quota
+                   # "S3",              # How you think of yourself
+                   # "S3B",             # Gender
+                   # "S4",              # Current state of residence
+                   # # "S5",            # Year of birth (commented out)
+                   # "S5_AGE",          # Age categories
+                   # "S13",             # Highest level of education
+                   # "S14",             # Community lived in
+                   
+                   # # Variables capturing experiences with racism
+                   # "Q627",            # Treated unfairly or discriminated against
+                   # # "Q628",            # Location of discrimination
+                   # "Q629R1",          # Unfair treatment due to racial background/ethnicity
+                   # "Q629R2",          # Unfair treatment due to skin color
+                   # "Q629R3",          # Unfair treatment due to gender
+                   # "Q629R4",          # Unfair treatment due to sexuality/orientation
+                   # "Q629R5",          # Unfair treatment due to immigration status
+                   # "Q629R6",          # Unfair treatment due to religion
+                   # "Q629R7",          # Unfair treatment due to accent
+                   # "Q633",            # Discrimination impact on life satisfaction
+                   # "Q619_Q626R2",     # Perceptions of discrimination against Blacks
+                   # "Q619_Q626R3",     # Perceptions of discrimination against Asian Americans
+                   # "Q619_Q626R4",     # Perceptions of discrimination against Native Americans
+                   # "Q619_Q626R5",     # Perceptions of discrimination against Immigrants
+                   # "Q619_Q626R6")    # Perceptions of discrimination against Latinos
+
+
+
+# Logistic regression model
+model <- glm(
+  Q1R5 ~ S2_RACE_PRIME + MAIN_ETH_QUOTA + S3 + S3B + S4 + S5_AGE + S13 + S14 + 
+   Q627 + Q629R1 + Q629R2 + Q629R3 + Q629R4 + Q629R5 + Q629R6 + Q629R7 +
+    Q633 +
+     Q619_Q626R2 + Q619_Q626R3 + Q619_Q626R4 + Q619_Q626R5 + Q619_Q626R6,
+  family = binomial(link = "logit"),
+  data = dataset_new
+)
+
+# Summarize model
+summary(model)
+```
+
+```{r}
+# Check levels of all variables used in the model
+sapply(dataset[, c("S2_RACE_PRIME", "MAIN_ETH_QUOTA", "S3", "S3B", "S4", "S5_AGE", "S13", "S14", 
+                   "Q627", "Q629R1", "Q629R2", "Q629R3", "Q629R4", "Q629R5", "Q629R6", "Q629R7",
+                   "Q633", "Q619_Q626R2", "Q619_Q626R3", "Q619_Q626R4", "Q619_Q626R5", "Q619_Q626R6")], 
+       function(x) if(is.factor(x)) levels(x) else unique(x))
+
+
+# Identify single-level factors
+single_level_vars <- names(Filter(function(x) length(unique(x)) <= 1, dataset_new))
+print(single_level_vars)
+
+```
+
+```{r}
+{r}
+# Example: Stacked bar plot for Q627
+library(ggplot2)
+ggplot(dataset_new, aes(x = Q627, fill = Q1R5)) +
+  geom_bar(position = "fill") +
+  labs(title = "Q627 vs Q1R5", y = "Proportion", x = "Q627 (Experience of Racism)")
+
+
+ggplot(dataset_new, aes(x = MAIN_ETH_QUOTA, fill = Q1R5)) +
+  geom_bar(position = "fill") +
+  labs(title = "Q627 vs Q1R5", y = "Proportion", x = "Q627 (Experience of Racism)")
+```

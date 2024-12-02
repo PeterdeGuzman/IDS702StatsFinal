@@ -1,0 +1,276 @@
+---
+title: "Naki_BLR"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+# Loading dataset
+
+```{r}
+#| echo: false
+# Set the file path
+file_path <- "/Users/nakiyahdhariwala/StatsProject/39096-0001-Data.rda"
+
+# Load the RDA file
+load(file_path)
+
+# List objects loaded into the environment
+ls()
+
+# Access the dataset (replace `da39096.0001` with the actual name found in `ls()`)
+dataset <- da39096.0001  # Use the correct object name
+
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+```{r}
+# Exploring the data
+
+#colnames(dataset)
+head(dataset)
+```
+
+# Variable selection
+
+```{r}
+required_cols <- c("Q1R5", # Outcome Variable; Stopping discrimination against racial/ethnic minorities (Binary: 0 = Not important, 1 = Important).
+                   "S2_RACE_PRIME",   # Primary Race
+                   "MAIN_ETH_QUOTA",  # Ethnic Quota
+                   "S3",              # Orientation
+                   "S3B",             # Gender
+                   #"S4",              # Current state of residence
+                   "S5_AGE",          # Age categories
+                   "S13",             # Highest level of education
+                   "S14",             # Community lived in
+                   
+                   # Variables capturing experiences with racism
+                   # Create stacked bar charts for this section to identify which variables we shoul look into further 
+                   
+                   "Q627",            # Treated unfairly or discriminated against
+                   
+                   "Q629R1",          # Unfair treatment due to racial background/ethnicity
+                   "Q629R2",          # Unfair treatment due to skin color
+                   "Q629R3",          # Unfair treatment due to gender
+                   "Q629R4",          # Unfair treatment due to sexuality/orientation
+                   "Q629R5",          # Unfair treatment due to immigration status
+                   "Q629R6",          # Unfair treatment due to religion
+                   "Q629R7",          # Unfair treatment due to accent
+                   
+                   "Q633",            # Discrimination impact on life satisfaction
+                   
+                   # Religion-related variables
+                   "Q58R1",            # Catholic
+                   "Q58R2",            # Protestant
+                   "Q58R3",            # Other Christian
+                   "Q58R4",            # Jewish
+                   "Q58R5",            # Muslim
+                   "Q58R6",            # Hindu
+                   "Q58R7",            # Buddhist
+                   "Q58R8",            # Mormon/LDS
+                   "Q58R9",            # Folk Religion
+                   "Q58R10",           # Daoist
+                   "Q58R11",           # Shamanism
+                   "Q58R12",           # Ancestral Religion
+                   "Q58R13",           # Spiritual but not religious
+                   "Q58R14",           # Atheist
+                   "Q58R15")            # Agnostic
+
+
+# Create a new dataframe with selected variables
+dataset_new <- dataset[, required_cols]
+head(dataset_new)
+
+```
+
+# Convert variables
+
+```{r}
+# Convert the required columns to factors
+dataset_new[required_cols] <- lapply(dataset_new[required_cols], as.factor)
+
+# Verify that the columns have been successfully converted to factors
+str(dataset_new[required_cols])
+head(dataset_new)
+```
+
+```{r}
+# Convert individual religion columns to numeric
+for (i in 1:15) {
+  col_name <- paste0("Q58R", i, "_numeric")
+  dataset_new[[col_name]] <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", dataset_new[[paste0("Q58R", i)]]))
+}
+
+# Create a new Religion variable
+dataset_new$Religion <- "None"
+dataset_new$Religion[dataset_new$Q58R1_numeric == 1] <- "Catholic"
+dataset_new$Religion[dataset_new$Q58R2_numeric == 1] <- "Protestant"
+dataset_new$Religion[dataset_new$Q58R3_numeric == 1] <- "Other Christian"
+dataset_new$Religion[dataset_new$Q58R4_numeric == 1] <- "Jewish"
+dataset_new$Religion[dataset_new$Q58R5_numeric == 1] <- "Muslim"
+dataset_new$Religion[dataset_new$Q58R6_numeric == 1] <- "Hindu"
+dataset_new$Religion[dataset_new$Q58R7_numeric == 1] <- "Buddhist"
+dataset_new$Religion[dataset_new$Q58R8_numeric == 1] <- "Mormon/LDS"
+dataset_new$Religion[dataset_new$Q58R9_numeric == 1] <- "Folk Religion"
+dataset_new$Religion[dataset_new$Q58R10_numeric == 1] <- "Daoist"
+dataset_new$Religion[dataset_new$Q58R11_numeric == 1] <- "Shamanism"
+dataset_new$Religion[dataset_new$Q58R12_numeric == 1] <- "Ancestral Religion"
+dataset_new$Religion[dataset_new$Q58R13_numeric == 1] <- "Spiritual but not religious"
+dataset_new$Religion[dataset_new$Q58R14_numeric == 1] <- "Atheist"
+dataset_new$Religion[dataset_new$Q58R15_numeric == 1] <- "Agnostic"
+
+# Check if an individual reported multiple religious affiliations 
+dataset_new$multiple_religions <- rowSums(dataset_new[, grep("_numeric", names(dataset_new))] == 1)
+check <- table(dataset_new$multiple_religions)
+
+# Handle multiple religious affiliations
+dataset_new$Religion[rowSums(dataset_new[, grep("_numeric", names(dataset_new))] == 1) > 1] <- "Multiple Religions"
+
+# Convert Religion to a factor
+dataset_new$Religion <- factor(dataset_new$Religion,
+                               levels = c("Catholic", "Protestant", "Other Christian", "Jewish", "Muslim",
+                                          "Hindu", "Buddhist", "Mormon/LDS", "Folk Religion",
+                                          "Daoist", "Shamanism", "Ancestral Religion",
+                                          "Spiritual but not religious", "Atheist", "Agnostic", 
+                                          "Multiple Religions", "None"))
+
+# Create a table of counts for the new Religion variable
+table(dataset_new$Religion)
+
+```
+
+```{r}
+# Remove redundant religion columns (Q58R1 to Q58R15 and their numeric versions)
+redundant_cols <- c(
+  "Q58R1", "Q58R2", "Q58R3", "Q58R4", "Q58R5", "Q58R6", "Q58R7", "Q58R8", 
+  "Q58R9", "Q58R10", "Q58R11", "Q58R12", "Q58R13", "Q58R14", "Q58R15",
+  "Q58R1_numeric", "Q58R2_numeric", "Q58R3_numeric", "Q58R4_numeric", 
+  "Q58R5_numeric", "Q58R6_numeric", "Q58R7_numeric", "Q58R8_numeric", 
+  "Q58R9_numeric", "Q58R10_numeric", "Q58R11_numeric", "Q58R12_numeric", 
+  "Q58R13_numeric", "Q58R14_numeric", "Q58R15_numeric"
+)
+
+# Remove redundant columns from the dataset
+dataset_clean <- dataset_new[, !(names(dataset_new) %in% redundant_cols)]
+
+# Take a look at the updated dataset
+head(dataset_clean)
+```
+
+# Missing values
+
+```{r}
+# Check the number of missing values for each variable
+missing_summary <- colSums(is.na(dataset_clean))
+missing_summary
+
+# Finding proportion of Missing Data
+missing_proportion <- colSums(is.na(dataset_clean)) / nrow(dataset_clean)
+missing_proportion
+
+# Finding total missing data proportion
+overall_missing <- sum(is.na(dataset_clean)) / (nrow(dataset_clean) * ncol(dataset_clean))
+overall_missing
+
+# Omiting missing data (Not gonna do it for now)
+# dataset_clean <- na.omit(dataset_clean)
+# head(dataset_clean)
+```
+
+We can see that 9180 values are missing from every column that relates to questions of unfair treatment. Upon further investigation we find that missing values account for approximately 52% of the total column data. For now, we decide not to do anything and proceed further with the analysis
+
+```{r}
+head(dataset_new)
+head(dataset_clean)
+```
+
+# Cleaned version
+
+Make one chart showing the outcome distribution
+
+```{r}
+# (Outcome) Distribution of the proportion of people who view "Stopping discrimination against racial/ethnic minorities" as an important issue
+table(dataset_clean$Q1R5) / nrow(dataset_clean)
+
+table(dataset_clean$S2_RACE_PRIME)
+table(dataset_clean$MAIN_ETH_QUOTA)
+
+```
+```{r}
+# List of columns to be transformed
+cols <- c("Q629R1", "Q629R2", "Q629R3", "Q629R4", "Q629R5", "Q629R6", "Q629R7")
+
+# Convert factors to numeric (0 or 1) based on levels
+dataset_clean$Q629R1_racialbackground <- ifelse(as.numeric(dataset_clean$Q629R1) == 1, 1, 0)
+dataset_clean$Q629R2_skincolor <- ifelse(as.numeric(dataset_clean$Q629R2) == 1, 1, 0)
+dataset_clean$Q629R3_gender <- ifelse(as.numeric(dataset_clean$Q629R3) == 1, 1, 0)
+dataset_clean$Q629R4_orientation <- ifelse(as.numeric(dataset_clean$Q629R4) == 1, 1, 0)
+dataset_clean$Q629R5_immigration <- ifelse(as.numeric(dataset_clean$Q629R5) == 1, 1, 0)
+dataset_clean$Q629R6_religion <- ifelse(as.numeric(dataset_clean$Q629R6) == 1, 1, 0)
+dataset_clean$Q629R7_accent <- ifelse(as.numeric(dataset_clean$Q629R7) == 1, 1, 0)
+
+# Check the distribution of the newly created binary columns
+for (col in c("Q629R1_racialbackground", "Q629R2_skincolor", "Q629R3_gender", 
+              "Q629R4_orientation", "Q629R5_immigration", "Q629R6_religion", 
+              "Q629R7_accent")) {
+  print(col)  # Print the column name
+  print(table(dataset_clean[[col]]))  # Access the column dynamically
+}
+```
+
+
+```{r}
+# Checking for levels in the model
+level <- sapply(dataset_clean, function(x) length(unique(x)))
+level
+
+dataset_clean$interaction_term <- interaction(dataset_clean$S2_RACE_PRIME, dataset_clean$MAIN_ETH_QUOTA)
+
+model <- glm(Q1R5 ~ S2_RACE_PRIME +   # Primary Race
+                    MAIN_ETH_QUOTA +  # Ethnic Quota
+                   S3 +              # Orientation
+                   S3B +             # Gender
+                   S5_AGE +          # Age categories
+                   S13 +             # Highest level of education
+                   S14 +             # Community lived in
+                   
+                   # Variables capturing experiences with racism
+                  Q627 +           # Treated unfairly or discriminated against
+                  Religion +
+               interaction_term,
+                  #Q629R1,          # Unfair treatment due to racial background/ethnicity
+                  #Q629R2 +          # Unfair treatment due to skin color
+                  #Q629R3 +          # Unfair treatment due to gender
+                  #Q629R4 +          # Unfair treatment due to sexuality/orientation
+                  #Q629R5 +          # Unfair treatment due to immigration status
+                  #Q629R6 +          # Unfair treatment due to religion
+                  #Q629R7 +          # Unfair treatment due to accent
+                  # 
+                  #Q633,             # Discrimination impact on life satisfaction
+                   data = dataset_clean, family = binomial)            
+summary(model)
+
+#prop.table(table(dataset_clean$Q629R1))
+#prop.table(table(dataset_clean$Q629R2))
+# Repeat for other variables
+```
+
+
+```{r}
+step_model <- step(model, direction = "both")
+step_model
+```

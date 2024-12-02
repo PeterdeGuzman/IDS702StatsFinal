@@ -1,0 +1,15 @@
+---
+title: "peter_plots"
+format: html
+editor: visual
+---
+
+## 
+
+# Loading data
+
+# plot 1:
+
+# plot 2:
+
+# plot 3:

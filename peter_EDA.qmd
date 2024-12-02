@@ -1,0 +1,26 @@
+---
+title: "peter_EDA"
+format: html
+author: "Peter de Guzman"
+editor: visual
+---
+
+Conducting EDA on the 2020 CMPS dataset for Research Question 1
+
+# Loading data
+
+# Selecting Variables
+
+# Cleaning Variables
+
+# Analysis of Missing Data
+
+# Save cleaned data
+
+# Creating summary table
+
+# Running chi-square tests
+
+# Fitting OLR Model
+
+# Fitting MLR Model

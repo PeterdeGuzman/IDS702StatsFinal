@@ -1,0 +1,16 @@
+---
+title: "peter_models"
+format: html
+author: "Peter de Guzman"
+editor: visual
+---
+
+## 
+
+# Loading data
+
+# Running chi-square tests
+
+# Fitting OLR Model
+
+# Fitting MLR Model

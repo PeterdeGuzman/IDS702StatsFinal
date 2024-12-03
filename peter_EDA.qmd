@@ -166,7 +166,25 @@ dataset_clean <- dataset_clean %>% mutate(educ = case_when(S13 == "(1) Grades 1-
                                                             S14 == "(2) Large suburb near large city" ~ "Urban/suburban",
                                                             S14 == "(3) Small suburb near small town or city" ~ "Urban/suburban",
                                                             S14 == "(4) Small town or small city" ~ "Urban/suburban",
-                                                            S14 == "(5) Rural area" ~ "Rural"))
+                                                            S14 == "(5) Rural area" ~ "Rural"),
+                                          white = case_when(S2_RACE_PRIME == "(1) White" ~ "White", 
+                                                            S2_RACE_PRIME == "(2) Hispanic or Latino" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(3) Black or African American" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(4) Asian American" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(5) American Indian/Native American" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(7) Native Hawaiian" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "Non-White"),
+                                          race_recoded = case_when(S2_RACE_PRIME == "(1) White" ~ "White",
+                                                                   S2_RACE_PRIME == "(2) Hispanic or Latino" ~ "Latino",
+                                                                   S2_RACE_PRIME == "(3) Black or African American" ~ "Black",
+                                                                   S2_RACE_PRIME == "(4) Asian American" ~ "Asian American",
+                                                                   S2_RACE_PRIME == "(5) American Indian/Native American" ~ "AIAN",
+                                                                   S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Arab/MENA",
+                                                                   S2_RACE_PRIME == "(7) Native Hawaiian" ~ "NHPI",
+                                                                   S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "NHPI"))
+
+
 ```
 
 # Analysis of Missing Data
@@ -196,7 +214,7 @@ For Q628, there are 15,709 (89.53%) missing values. For Q629R1 there are 9,180 (
 # Save cleaned data
 
 ```{r}
-#save(dataset_clean, file = "/Users/pdeguz01/Documents/git/Data/2020 CMPS/Output/2020cmps_clean.RData")
+save(dataset_clean, file = "/Users/pdeguz01/Documents/git/Data/2020 CMPS/Output/2020cmps_clean.RData")
 
 ```
 
@@ -211,12 +229,12 @@ table(dataset_clean$Q271) / nrow(dataset_clean)
 
 Table of Q29 for full sample - Interest in Politics
 
-| Level of Interest in Politics     | Percent of Total Respondents  |
-|-----------------------------------|-------------------------------|
-| Very interested in politics       | 24.54%                        |
-| Somewhat interested               | 43.39%                        |
-| Not that interested in politics   | 20.76%                        |
-| Not at all interested in politics | 11.31%                        |
+| Level of Interest in Politics     | Percent of Total Respondents |
+|-----------------------------------|------------------------------|
+| Very interested in politics       | 24.54%                       |
+| Somewhat interested               | 43.39%                       |
+| Not that interested in politics   | 20.76%                       |
+| Not at all interested in politics | 11.31%                       |
 
 Table of Q271 for full sample - How important is being a member of \[RACIAL GROUP\] to your identity?
 

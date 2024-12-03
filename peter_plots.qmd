@@ -5,11 +5,144 @@ editor: visual
 ---
 
 ## 
+# Packages
+```{r}
+library(tidyverse)
+library(janitor)
+library(ggplot2)
+library(scales)
+```
 
 # Loading data
+```{r}
+file_path = "/Users/pdeguz01/Documents/git/Data/2020 CMPS/Output/2020cmps_clean.RData"
+load(file_path)
+```
+
 
 # plot 1:
+Race and importance of being a member of racial group to identity (Q271)
+```{r}
+
+data_summary <- dataset_clean %>%
+  group_by(S2_RACE_PRIME, Q271) %>%
+  summarise(count = n()) %>%
+  mutate(proportion = count / sum(count) * 100)  # Calculate proportion for each race
+
+races <- unique(data_summary$S2_RACE_PRIME)
+
+
+# Loop through each race and generate a plot
+for (race_value in races) {
+  plot_data <- data_summary %>% filter(S2_RACE_PRIME == race_value)
+  
+  p <- ggplot(plot_data, aes(x = Q271, y = proportion, fill = Q271)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(title = paste("Proportions for", race_value, "Respondents"), x = "Importance of Race to Identity", y = "Proportion", fill = "Rating") + 
+    scale_x_discrete(labels = c("1", "2", "3", "4", "5")) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentages
+    theme_minimal() +
+    theme(
+      axis.text = element_text(size = 12),  # Customize axis text size
+      plot.title = element_text(size = 14, hjust = 0.5)  # Center title
+    )
+  
+  # Save each plot as a separate image file (optional)
+  #ggsave(paste0("plot_", race_value, ".png"), plot = p, width = 6, height = 4)
+  
+  # Print the plot (optional, if you want to view them in the R console)
+  print(p)
+}
+
+```
+
+
 
 # plot 2:
+Race and interest in politics (Q29)
+```{r}
+
+```
+
 
 # plot 3:
+White/non-white and importance of race to identity (Q271)
+
+# plot:
+White/non-white and interest in politics (Q29)
+
+
+# plot 3:
+College Experience and importance of being a member of racial group to identity (Q271)
+```{r}
+data_summary <- dataset_clean %>%
+  group_by(educ, Q271) %>%
+  summarise(count = n()) %>%
+  mutate(proportion = count / sum(count) * 100)  # Calculate proportion for each race
+
+
+plot_somecollege <- data_summary %>% filter(educ == "Some college experience") %>% ggplot(aes(x = Q271, y = proportion, fill = Q271)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(title = paste("Proportions for Respondents with Some college Experience"), x = "Importance of Race to Identity", y = "Proportion", fill = "Rating") + 
+    scale_x_discrete(labels = c("1", "2", "3", "4", "5")) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentages
+    theme_minimal() +
+    theme(
+      axis.text = element_text(size = 12),  # Customize axis text size
+      plot.title = element_text(size = 14, hjust = 0.5)  # Center title
+    )
+  
+
+print(plot_somecollege)
+
+plot_nocollege <- data_summary %>% filter(educ == "No college experience") %>% ggplot(aes(x = Q271, y = proportion, fill = Q271)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(title = paste("Proportions for Respondents with No college Experience"), x = "Importance of Race to Identity", y = "Proportion", fill = "Rating") + 
+    scale_x_discrete(labels = c("1", "2", "3", "4", "5")) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentages
+    theme_minimal() +
+    theme(
+      axis.text = element_text(size = 12),  # Customize axis text size
+      plot.title = element_text(size = 14, hjust = 0.5)  # Center title
+    )
+  
+
+print(plot_nocollege)
+
+```
+
+
+# plot 4:
+College Experience and interest in politics (Q29)
+```{r}
+
+```
+
+
+# plot 4:
+Age and importance of being a member of racial group to identity (Q271)
+```{r}
+
+```
+
+
+# plot 5:
+Age and interest in politics (Q29)
+```{r}
+
+```
+
+
+# plot 6:
+Rurality and importance of being a member of racial group to identity (Q271)
+```{r}
+
+```
+
+
+# plot 7:
+Rurality and interest in politics
+```{r}
+
+```
+

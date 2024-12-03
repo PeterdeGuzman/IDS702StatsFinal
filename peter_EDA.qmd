@@ -214,7 +214,7 @@ For Q628, there are 15,709 (89.53%) missing values. For Q629R1 there are 9,180 (
 # Save cleaned data
 
 ```{r}
-save(dataset_clean, file = "/Users/pdeguz01/Documents/git/Data/2020 CMPS/Output/2020cmps_clean.RData")
+#save(dataset_clean, file = "/Users/pdeguz01/Documents/git/Data/2020 CMPS/Output/2020cmps_clean.RData")
 
 ```
 

@@ -182,7 +182,14 @@ dataset_clean <- dataset_clean %>% mutate(educ = case_when(S13 == "(1) Grades 1-
                                                                    S2_RACE_PRIME == "(5) American Indian/Native American" ~ "AIAN",
                                                                    S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Arab/MENA",
                                                                    S2_RACE_PRIME == "(7) Native Hawaiian" ~ "NHPI",
-                                                                   S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "NHPI"))
+                                                                   S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "NHPI"),
+                                          age_recoded = case_when(S5_AGE == "(1) 16-17" ~ "16-17",
+                                                                  S5_AGE == "(2) 18-29" ~ "18-29",
+                                                                  S5_AGE == "(3) 30-39" ~ "30-39",
+                                                                  S5_AGE == "(4) 40-49" ~ "40-49",
+                                                                  S5_AGE == "(5) 50-59" ~ "50-59",
+                                                                  S5_AGE == "(6) 60-69" ~ "60-69",
+                                                                  S5_AGE == "(7) 70 +" ~ "70+"))
 
 
 ```
@@ -214,7 +221,7 @@ For Q628, there are 15,709 (89.53%) missing values. For Q629R1 there are 9,180 (
 # Save cleaned data
 
 ```{r}
-#save(dataset_clean, file = "/Users/pdeguz01/Documents/git/Data/2020 CMPS/Output/2020cmps_clean.RData")
+save(dataset_clean, file = "/Users/pdeguz01/Documents/git/Data/2020 CMPS/Output/2020cmps_clean.RData")
 
 ```
 

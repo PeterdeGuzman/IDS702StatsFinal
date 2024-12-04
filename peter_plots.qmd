@@ -5,7 +5,9 @@ editor: visual
 ---
 
 ## 
+
 # Packages
+
 ```{r}
 library(tidyverse)
 library(janitor)
@@ -14,14 +16,16 @@ library(scales)
 ```
 
 # Loading data
+
 ```{r}
 file_path = "/Users/pdeguz01/Documents/git/Data/2020 CMPS/Output/2020cmps_clean.RData"
 load(file_path)
 ```
 
-
 # plot 1:
+
 Race and importance of being a member of racial group to identity (Q271)
+
 ```{r}
 
 data_summary <- dataset_clean %>%
@@ -52,19 +56,19 @@ for (race_value in races) {
       plot.title = element_text(size = 14, hjust = 0.5)  # Center title
     )
   
-  # Save each plot as a separate image file (optional)
-  #ggsave(paste0("plot_", race_value, "Q271.png"), plot = p, width = 6, height = 4)
+  # Save each plot as a separate image file 
+  ggsave(paste0("plot_", race_value, "Q271.png"), plot = p, width = 6, height = 4)
   
-  # Print the plot (optional, if you want to view them in the R console)
+  # Print the plot
   print(p)
 }
 
 ```
 
-
-
 # plot 2:
+
 Race and interest in politics (Q29)
+
 ```{r}
 data_summary <- dataset_clean %>%
   group_by(race_recoded, Q29) %>%
@@ -95,7 +99,7 @@ for (race_value in races) {
     )
   
   # Save each plot as a separate image file (optional)
-  #ggsave(paste0("plot_", race_value, "Q29.png"), plot = p, width = 6, height = 4)
+  ggsave(paste0("plot_", race_value, "Q29.png"), plot = p, width = 6, height = 4)
   
   # Print the plot (optional, if you want to view them in the R console)
   print(p)
@@ -103,9 +107,10 @@ for (race_value in races) {
 
 ```
 
-
 # plot 3:
+
 White/Non-White and importance of race to identity (Q271)
+
 ```{r}
 
 data_summary <- dataset_clean %>%
@@ -130,6 +135,7 @@ plot_whiteQ271 <- data_summary %>% filter(white == "White") %>% ggplot(aes(x = Q
       plot.title = element_text(size = 14, hjust = 0.5)  # Center title
     )
   
+ggsave("plot_whiteQ271.png", plot = plot_whiteQ271, width = 6, height = 4)
 
 print(plot_whiteQ271)
 
@@ -148,13 +154,17 @@ plot_nonwhiteQ271 <- data_summary %>% filter(white == "Non-White") %>% ggplot(ae
       axis.text = element_text(size = 12),  # Customize axis text size
       plot.title = element_text(size = 14, hjust = 0.5)  # Center title
     )
-  
+
+ggsave("plot_nonwhiteQ271.png", plot = plot_nonwhiteQ271, width = 6, height = 4)
+
 print(plot_nonwhiteQ271)
 
 ```
 
 # plot:
+
 White/Non-White and interest in politics (Q29)
+
 ```{r}
 data_summary <- dataset_clean %>%
   group_by(white, Q29) %>%
@@ -178,6 +188,8 @@ plot_whiteQ29 <- data_summary %>% filter(white == "White") %>% ggplot(aes(x = Q2
       plot.title = element_text(size = 14, hjust = 0.5)  # Center title
     )
 
+ggsave("plot_whiteQ29.png", plot = plot_whiteQ29, width = 6, height = 4)
+
 print(plot_whiteQ29)
 
 plot_nonwhiteQ29 <- data_summary %>% filter(white == "Non-White") %>% ggplot(aes(x = Q29, y = proportion, fill = Q29)) +
@@ -195,13 +207,17 @@ plot_nonwhiteQ29 <- data_summary %>% filter(white == "Non-White") %>% ggplot(aes
       axis.text = element_text(size = 12),  # Customize axis text size
       plot.title = element_text(size = 14, hjust = 0.5)  # Center title
     )
-  
+
+ggsave("plot_nonwhiteQ29.png", plot = plot_nonwhiteQ29, width = 6, height = 4)
+
 print(plot_nonwhiteQ29)
 
 ```
 
 # plot 3:
+
 College Experience and importance of being a member of racial group to identity (Q271)
+
 ```{r}
 data_summary <- dataset_clean %>%
   group_by(educ, Q271) %>%
@@ -209,7 +225,7 @@ data_summary <- dataset_clean %>%
   mutate(proportion = count / sum(count) * 100)  # Calculate proportion for each education group
 
 
-plot_collegegrad <- data_summary %>% filter(educ == "College graduate") %>% ggplot(aes(x = Q271, y = proportion, fill = Q271)) +
+plot_collegegradQ271 <- data_summary %>% filter(educ == "College graduate") %>% ggplot(aes(x = Q271, y = proportion, fill = Q271)) +
     geom_bar(stat = "identity", position = "dodge") +
     labs(title = paste("Proportions for Respondents that are College Graduates"), x = "Importance of Race to Identity", y = "Proportion", fill = "Rating") + 
     scale_x_discrete(labels = c("1", "2", "3", "4", "5")) +
@@ -225,11 +241,12 @@ plot_collegegrad <- data_summary %>% filter(educ == "College graduate") %>% ggpl
       plot.title = element_text(size = 14, hjust = 0.5)  # Center title
     )
   
+ggsave("plot_collegegradQ271.png", plot = plot_collegegradQ271, width = 6, height = 4)
 
 print(plot_collegegradQ271)
 
 
-plot_somecollege <- data_summary %>% filter(educ == "Some college experience") %>% ggplot(aes(x = Q271, y = proportion, fill = Q271)) +
+plot_somecollegeQ271 <- data_summary %>% filter(educ == "Some college experience") %>% ggplot(aes(x = Q271, y = proportion, fill = Q271)) +
     geom_bar(stat = "identity", position = "dodge") +
     labs(title = paste("Proportions for Respondents with Some College Experience"), x = "Importance of Race to Identity", y = "Proportion", fill = "Rating") + 
     scale_x_discrete(labels = c("1", "2", "3", "4", "5")) +
@@ -245,10 +262,10 @@ plot_somecollege <- data_summary %>% filter(educ == "Some college experience") %
       plot.title = element_text(size = 14, hjust = 0.5)  # Center title
     )
   
-
+ggsave("plot_somecollegeQ271.png", plot = plot_somecollegeQ271, width = 6, height = 4)
 print(plot_somecollegeQ271)
 
-plot_nocollege <- data_summary %>% filter(educ == "No college experience") %>% ggplot(aes(x = Q271, y = proportion, fill = Q271)) +
+plot_nocollegeQ271 <- data_summary %>% filter(educ == "No college experience") %>% ggplot(aes(x = Q271, y = proportion, fill = Q271)) +
     geom_bar(stat = "identity", position = "dodge") +
     labs(title = paste("Proportions for Respondents with No College Experience"), x = "Importance of Race to Identity", y = "Proportion", fill = "Rating") + 
     scale_x_discrete(labels = c("1", "2", "3", "4", "5")) +
@@ -264,14 +281,16 @@ plot_nocollege <- data_summary %>% filter(educ == "No college experience") %>% g
       plot.title = element_text(size = 14, hjust = 0.5)  # Center title
     )
   
+ggsave("plot_nocollegeQ271.png", plot = plot_nocollegeQ271, width = 6, height = 4)
 
 print(plot_nocollegeQ271)
 
 ```
 
-
 # plot 4:
+
 College Experience and interest in politics (Q29)
+
 ```{r}
 
 data_summary <- dataset_clean %>%
@@ -280,7 +299,7 @@ data_summary <- dataset_clean %>%
   mutate(proportion = count / sum(count) * 100)  # Calculate proportion for each education group
 
 
-plot_collegegrad <- data_summary %>% filter(educ == "College graduate") %>% ggplot(aes(x = Q29, y = proportion, fill = Q29)) +
+plot_collegegradQ29 <- data_summary %>% filter(educ == "College graduate") %>% ggplot(aes(x = Q29, y = proportion, fill = Q29)) +
     geom_bar(stat = "identity", position = "dodge") +
     labs(title = paste("Proportions for Respondents that are College Graduates"), x = "Interest in Politics", y = "Proportion", fill = "Rating") + 
     scale_x_discrete(labels = c("1", "2", "3", "4", "5")) +
@@ -295,12 +314,12 @@ plot_collegegrad <- data_summary %>% filter(educ == "College graduate") %>% ggpl
       axis.text = element_text(size = 12),  # Customize axis text size
       plot.title = element_text(size = 14, hjust = 0.5)  # Center title
     )
-  
 
+ggsave("plot_collegegradQ29.png", plot = plot_collegegradQ29, width = 6, height = 4)
 print(plot_collegegradQ29)
 
 
-plot_somecollege <- data_summary %>% filter(educ == "Some college experience") %>% ggplot(aes(x = Q29, y = proportion, fill = Q29)) +
+plot_somecollegeQ29 <- data_summary %>% filter(educ == "Some college experience") %>% ggplot(aes(x = Q29, y = proportion, fill = Q29)) +
     geom_bar(stat = "identity", position = "dodge") +
     labs(title = paste("Proportions for Respondents with Some College Experience"), x = "Interest in Politics", y = "Proportion", fill = "Rating") + 
     scale_x_discrete(labels = c("1", "2", "3", "4", "5")) +
@@ -316,10 +335,10 @@ plot_somecollege <- data_summary %>% filter(educ == "Some college experience") %
       plot.title = element_text(size = 14, hjust = 0.5)  # Center title
     )
   
-
+ggsave("plot_somecollegeQ29.png", plot = plot_somecollegeQ29, width = 6, height = 4)
 print(plot_somecollegeQ29)
 
-plot_nocollege <- data_summary %>% filter(educ == "No college experience") %>% ggplot(aes(x = Q29, y = proportion, fill = Q29)) +
+plot_nocollegeQ29 <- data_summary %>% filter(educ == "No college experience") %>% ggplot(aes(x = Q29, y = proportion, fill = Q29)) +
     geom_bar(stat = "identity", position = "dodge") +
     labs(title = paste("Proportions for Respondents with No College Experience"), x = "Interest in Politics", y = "Proportion", fill = "Rating") + 
     scale_x_discrete(labels = c("1", "2", "3", "4", "5")) +
@@ -335,26 +354,27 @@ plot_nocollege <- data_summary %>% filter(educ == "No college experience") %>% g
       plot.title = element_text(size = 14, hjust = 0.5)  # Center title
     )
   
-
+ggsave("plot_nocollegeQ29.png", plot = plot_nocollegeQ29, width = 6, height = 4)
 print(plot_nocollegeQ29)
 
 ```
 
-
 # plot 4:
+
 Age and importance of being a member of racial group to identity (Q271)
+
 ```{r}
 data_summary <- dataset_clean %>%
-  group_by(S5_AGE, Q271) %>%
+  group_by(age_recoded, Q271) %>%
   summarise(count = n()) %>%
   mutate(proportion = count / sum(count) * 100)  # Calculate proportion for each race
 
-age_groups <- unique(data_summary$S5_AGE)
+age_groups <- unique(data_summary$age_recoded)
 
 
 # Loop through each age group and generate a plot
 for (age_value in age_groups) {
-  plot_data <- data_summary %>% filter(S5_AGE == age_value)
+  plot_data <- data_summary %>% filter(age_recoded == age_value)
   
   p <- ggplot(plot_data, aes(x = Q271, y = proportion, fill = Q271)) +
     geom_bar(stat = "identity", position = "dodge") +
@@ -373,27 +393,28 @@ for (age_value in age_groups) {
     )
   
   # Save each plot as a separate image file (optional)
-  #ggsave(paste0("plot_", age_value, "Q271.png"), plot = p, width = 6, height = 4)
+  ggsave(paste0("plot_", age_value, "Q271.png"), plot = p, width = 6, height = 4)
   
   # Print the plot (optional, if you want to view them in the R console)
   print(p)
 }
 ```
 
-
 # plot 5:
+
 Age and interest in politics (Q29)
+
 ```{r}
 data_summary <- dataset_clean %>%
-  group_by(S5_AGE, Q29) %>%
+  group_by(age_recoded, Q29) %>%
   summarise(count = n()) %>%
   mutate(proportion = count / sum(count) * 100)  # Calculate proportion for each race
 
-age_groups <- unique(data_summary$S5_AGE)
+age_groups <- unique(data_summary$age_recoded)
 
 # Loop through each age group and generate a plot
 for (age_value in age_groups) {
-  plot_data <- data_summary %>% filter(S5_AGE == age_value)
+  plot_data <- data_summary %>% filter(age_recoded == age_value)
   
   p <- ggplot(plot_data, aes(x = Q29, y = proportion, fill = Q29)) +
     geom_bar(stat = "identity", position = "dodge") +
@@ -412,7 +433,7 @@ for (age_value in age_groups) {
     )
   
   # Save each plot as a separate image file 
-  #ggsave(paste0("plot_", age_value, "Q29.png"), plot = p, width = 6, height = 4)
+  ggsave(paste0("plot_", age_value, "Q29.png"), plot = p, width = 6, height = 4)
   
   # Print the plot 
   print(p)
@@ -420,9 +441,10 @@ for (age_value in age_groups) {
 
 ```
 
-
 # plot 6:
+
 Rurality and importance of being a member of racial group to identity (Q271)
+
 ```{r}
 data_summary <- dataset_clean %>%
   group_by(rural, Q271) %>%
@@ -452,16 +474,17 @@ for (rural_value in rural_groups) {
     )
   
   # Save each plot as a separate image file 
-  #ggsave(paste0("plot_", rural_value, "Q271.png"), plot = p, width = 6, height = 4)
+  ggsave(paste0("plot_", rural_value, "Q271.png"), plot = p, width = 6, height = 4)
   
   # Print the plot 
   print(p)
 }
 ```
 
-
 # plot 7:
+
 Rurality and interest in politics (Q29)
+
 ```{r}
 
 data_summary <- dataset_clean %>%
@@ -492,11 +515,10 @@ for (rural_value in rural_groups) {
     )
   
   # Save each plot as a separate image file 
-  #ggsave(paste0("plot_", rural_value, "Q29.png"), plot = p, width = 6, height = 4)
+  ggsave(paste0("plot_", rural_value, "Q29.png"), plot = p, width = 6, height = 4)
   
   # Print the plot 
   print(p)
 }
 
 ```
-

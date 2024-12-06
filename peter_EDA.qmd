@@ -191,6 +191,15 @@ dataset_clean <- dataset_clean %>% mutate(educ = case_when(S13 == "(1) Grades 1-
                                                                   S5_AGE == "(6) 60-69" ~ "60-69",
                                                                   S5_AGE == "(7) 70 +" ~ "70+"))
 
+dataset_clean <- dataset_clean %>% mutate(race_recoded = factor(dataset_clean$race_recoded, levels = c("White", "Black", "Asian American", "Latino", "AIAN", "NHPI", "Arab/MENA")),
+                                         age_recoded = factor(dataset_clean$age_recoded, levels = c("18-29", "30-39", "40-49", "50-59", "60-69", "70+")),
+                                         educ = factor(dataset_clean$educ, levels = c("No college experience", "Some college experience", "College graduate")),
+                                         white = factor(dataset_clean$white, levels = c("White", "Non-White")),
+                                         rural = factor(dataset_clean$rural, levels= c("Rural", "Urban/suburban")),
+                                         sex_orientation = factor(dataset_clean$sex_orientation, levels = c("Straight", "Queer", "Refused/Don't Know")))
+
+
+
 
 ```
 

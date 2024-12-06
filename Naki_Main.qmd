@@ -1,0 +1,432 @@
+---
+title: "Naki_Main"
+format: html
+editor: visual
+---
+
+
+```{r}
+
+# Load the packages
+library(ggplot2)
+library(broom)
+library(dplyr)
+library(car)
+library(caret)
+```
+
+# Introduction
+
+The Collaborative Multi-Racial Post-Election Survey (CMPS), United States, 2020 is an extensive dataset designed to capture diverse perspectives across racial and ethnic groups in the United States. Respondents were asked to address a wide range of issues, including political attitudes, voting behavior, social concerns, and policy preferences.
+
+# Preliminary Cleaning
+
+## Loading the Dataset
+
+```{r}
+file_path <- "/Users/nakiyahdhariwala/StatsProject/39096-0001-Data.rda"
+
+load(file_path)          # Load the RDA file
+ls()                     # List objects loaded into the environment
+dataset <- da39096.0001  # Access the dataset
+
+head(dataset)
+ncol(dataset)
+nrow(dataset)
+```
+
+The dataset contains 17,545 rows, with each row representing an individual respondent's data, and 1,490 columns, each capturing a specific variable or question response. These variables include demographic information, opinions on political and social issues, and responses to survey questions.
+
+This particular analysis focused on a single topic within the larger dataset. Specifically, our research question is: **How do personal experiences with racism, in combination with demographic factors such as race, gender, and education, influence the importance respondents place on policies aimed at addressing racial and ethnic discrimination, controlling for other social and political factors?**
+
+
+```{r}
+# Calculate proportions
+proportions <- prop.table(table(dataset$Q1R5))
+proportions
+# Define custom labels
+custom_labels <- c("Not important", "Important")
+
+# Combine custom labels with percentages
+pie_labels <- paste(custom_labels, round(proportions * 100, 2), "%")
+
+# Plot the pie chart with custom labels
+pie(proportions,
+    labels = pie_labels,
+    main = "Q1R5: Stopping discrimination against racial/ethnic minorities",
+    col = c("lightblue", "salmon"))
+```
+
+
+The outcome variable Q1R5 (Stopping discrimination against racial/ethnic minorities) for this Research Question is a binary variable which captures whether respondents view stopping racial and ethnic discrimination as an important issue (i.e., Important OR Not Important). Therefore, we will make use Logistic regression as it is suitable for modeling binary outcome variables and allows for the inclusion of both predictor and control variables. While the distribution is skewed (74.25% say "No"), logistic regression is robust to imbalance in the outcome variable. However, extreme imbalance (e.g., 95%-5%) might require additional techniques like resampling or penalized logistic regression.
+
+We can expect the analysis to reveal whether and to what extent experiences with racism predict the importance of racial/ethnic discrimination policy, controlling for demographic factors.
+
+## Extracting relevant columns
+```{r}
+# Define the required columns
+required_cols <- c(
+  # Outcome Variable: Stopping discrimination against racial/ethnic minorities
+  "Q1R5", 
+
+  # Demographic Variables
+  "S2_RACE_PRIME",   # Primary Race
+  "S3",              # SexualOrientation
+  "S3B",             # Gender
+  "S5_AGE",          # Age categories
+  "S13",             # Highest level of education
+  "S14",             # Community lived in
+
+  # Variables capturing experiences with racism
+  "Q629R1",          # Unfair treatment due to racial background/ethnicity
+  "Q629R2",          # Unfair treatment due to skin color
+  "Q629R3",          # Unfair treatment due to gender
+  "Q629R4",          # Unfair treatment due to sexuality/orientation
+  "Q629R5",          # Unfair treatment due to immigration status
+  "Q629R6",          # Unfair treatment due to religion
+  "Q629R7",          # Unfair treatment due to accent
+
+  "Q627",            # Treated unfairly or discriminated against because of your race, ethnicity, gender, sexuality, being an immigrant, religious heritage or having an accent?
+  "Q633",            # Discrimination impact on life satisfaction
+
+  # Religion-related variables
+  "Q58R1", "Q58R2", "Q58R3", "Q58R4", "Q58R5", "Q58R6", "Q58R7", 
+  "Q58R8", "Q58R9", "Q58R10", "Q58R11", "Q58R12", "Q58R13", 
+  "Q58R14", "Q58R15", # Various religious affiliations
+
+  # Perceptions of discrimination
+  "Q619_Q626R1",     # Perceptions of discrimination against Whites
+  "Q619_Q626R2",     # Perceptions of discrimination against Blacks
+  "Q619_Q626R3",     # Perceptions of discrimination against Asian Americans
+  "Q619_Q626R4",     # Perceptions of discrimination against Native Americans
+  "Q619_Q626R5",     # Perceptions of discrimination against Immigrants
+  "Q619_Q626R6",     # Perceptions of discrimination against Latinos
+  "Q619_Q626R7",     # Perceptions of discrimination against GaysAndLesbians
+  "Q619_Q626R8"      # Perceptions of discrimination against Muslims
+)
+```
+
+## Cleaning and factoring data for all columns
+```{r}
+# Create a new dataframe with selected variables
+dataset_new <- dataset[, required_cols]
+
+# Recode the outcome variable 'Q1R5' for readability
+dataset_new$Q1R5 <- factor(
+  ifelse(
+    dataset_new$Q1R5 == "(0) NO TO: Stopping discrimination against racial/ethnic minorities", 
+    "Not important",
+    ifelse(dataset_new$Q1R5 == "(1) Stopping discrimination against racial/ethnic minorities", 
+           "Important", 
+           "Not specified")
+  ),
+  levels = c("Not important", "Important", "Not specified") # Define factor levels
+)
+
+# Define the columns for perceptions of discrimination
+perception_cols <- c(
+  "Q619_Q626R1",  # Perceptions of discrimination against Whites
+  "Q619_Q626R2",  # Perceptions of discrimination against Blacks
+  "Q619_Q626R3",  # Perceptions of discrimination against Asian Americans
+  "Q619_Q626R4",  # Perceptions of discrimination against Native Americans
+  "Q619_Q626R5",  # Perceptions of discrimination against Immigrants
+  "Q619_Q626R6",  # Perceptions of discrimination against Latinos
+  "Q619_Q626R7",  # Perceptions of discrimination against GaysAndLesbians
+  "Q619_Q626R8",  # Perceptions of discrimination against Muslims
+  "Q633"          # Discrimination impact on life satisfaction
+)
+
+# Recode 'Don' as 'Don't know' and ensure columns remain factors
+dataset_new[perception_cols] <- lapply(dataset_new[perception_cols], function(x) {
+  x <- as.character(x)  # Temporarily convert to character for recoding
+  x <- ifelse(x == "(5) Don", "(5) Don't know", x)  # Recode 'Don' to 'Don't know'
+  factor(x)  # Convert back to factor
+})
+
+# Verify the changes in perception columns
+head(dataset_new[perception_cols])
+
+# Define required columns to convert to factors (if not already defined)
+# Assuming `required_cols` is previously defined; otherwise, specify explicitly
+# e.g., required_cols <- c("Q1R5", "Q619_Q626R1", ...)
+dataset_new[required_cols] <- lapply(dataset_new[required_cols], as.factor)
+
+# Verify the structure of the dataset
+str(dataset_new[required_cols])
+
+# Display the first few rows to check the changes
+head(dataset_new)
+```
+
+## Consolidating Religion to one column
+```{r}
+# Convert individual religion columns to numeric
+for (i in 1:15) {
+  col_name <- paste0("Q58R", i, "_numeric")
+  dataset_new[[col_name]] <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", dataset_new[[paste0("Q58R", i)]]))
+}
+
+# Create a new Religion variable
+dataset_new$Religion <- "None"
+
+# Assign religion based on the numeric values of each Q58R column
+religion_mapping <- c(
+  "Q58R1_numeric" = "Catholic", 
+  "Q58R2_numeric" = "Protestant", 
+  "Q58R3_numeric" = "Other Christian",
+  "Q58R4_numeric" = "Jewish", 
+  "Q58R5_numeric" = "Muslim", 
+  "Q58R6_numeric" = "Hindu", 
+  "Q58R7_numeric" = "Buddhist", 
+  "Q58R8_numeric" = "Mormon/LDS", 
+  "Q58R9_numeric" = "Folk Religion", 
+  "Q58R10_numeric" = "Daoist", 
+  "Q58R11_numeric" = "Shamanism", 
+  "Q58R12_numeric" = "Ancestral Religion", 
+  "Q58R13_numeric" = "Spiritual but not religious", 
+  "Q58R14_numeric" = "Atheist", 
+  "Q58R15_numeric" = "Agnostic"
+)
+
+# Loop through the mapping to assign values
+for (col in names(religion_mapping)) {
+  dataset_new$Religion[dataset_new[[col]] == 1] <- religion_mapping[[col]]
+}
+
+# Handle multiple religious affiliations
+dataset_new$Religion[rowSums(dataset_new[, grep("_numeric", names(dataset_new))] == 1) > 1] <- "Multiple Religions"
+
+# Convert Religion to a factor with specific levels
+dataset_new$Religion <- factor(dataset_new$Religion,
+                               levels = c("Catholic", "Protestant", "Other Christian", "Jewish", "Muslim",
+                                          "Hindu", "Buddhist", "Mormon/LDS", "Folk Religion",
+                                          "Daoist", "Shamanism", "Ancestral Religion",
+                                          "Spiritual but not religious", "Atheist", "Agnostic", 
+                                          "Multiple Religions", "None"))
+
+# Create a table of counts for the new Religion variable
+table(dataset_new$Religion)
+
+# Remove redundant religion columns (Q58R1 to Q58R15 and their numeric versions)
+redundant_cols <- c(
+  paste0("Q58R", 1:15), paste0("Q58R", 1:15, "_numeric")
+)
+
+# Remove redundant columns from the dataset
+dataset_clean <- dataset_new[, !(names(dataset_new) %in% redundant_cols)]
+
+# Take a look at the updated dataset
+head(dataset_clean)
+```
+
+We first consolidated multiple columns related to respondents' religious affiliations into a single, categorical variable called Religion. We also add another option called 'Multiple Religions' where respondents identified with more than one religion.
+
+# Checking for missing data
+
+```{r}
+# Check the number of missing values for each variable
+missing_summary <- sapply(dataset_clean, function(x) sum(is.na(x)))
+
+# Create a data frame to display the missing values clearly
+missing_df <- data.frame(Variable = names(missing_summary), Missing_Count = missing_summary)
+print(missing_df)
+
+# Extract the variables Q629R1 to Q629R7
+racism_vars <- dataset_clean[, grep("^Q629R[1-7]$", names(dataset_clean))]
+
+# Calculate the proportion of missing values for each variable
+missing_proportions <- colSums(is.na(racism_vars)) / nrow(racism_vars)
+
+# Convert to a data frame
+missing_summary <- data.frame(Variable = names(missing_proportions),
+                              Missing_Proportion = round(missing_proportions, 4))
+
+print(missing_summary)
+```
+
+Variables Q629R1 - Q629R7 each have 9,180 missing values, accounting for over 52% of their data. Due to this high proportion of missingness, we decided to remove these variables from the analysis.
+
+This decision is justified as these variables ("Q629R1" to "Q629R7") capture detailed experiences with unfair treatment but overlap significantly with the broader variable Q627 ("Treated unfairly or discriminated against"), which remains in the analysis. By retaining Q627, we ensure that the overall essence of experiences with racism is preserved, albeit in a more general and complete form.
+
+Removing these variables enhances data quality by addressing issues of excessive missingness, reduces the risk of bias, and strengthens the reliability and interpretability of the analysis.
+
+```{r}
+# Remove the variables Q629R1 to Q629R7
+dataset_clean <- dataset_clean[, !(names(dataset_clean) %in% c("Q629R1", "Q629R2", 
+                                                               "Q629R3", "Q629R4", 
+                                                               "Q629R5", "Q629R6", "Q629R7"))]
+
+head(dataset_clean)
+```
+
+## Rename the remaining column headers for ease of understanding
+```{r}
+colnames(dataset_clean)
+colnames(dataset_clean) <- c(
+  "ImportanceOfStoppingDiscriminationAgainstMinorities",
+  "PrimaryRace", 
+  "Orientation", 
+  "Gender", 
+  "Age", 
+  "HighestLevelOfEducation", 
+  "CommunityLivedIn", 
+  "TreatedUnfairlyOrDiscriminatedAgainst", 
+  "DiscriminationImpactOnLifeSatisfaction",
+  "PerceptionsOfDiscriminationAgainstWhites",
+  "PerceptionsOfDiscriminationAgainstBlacks", 
+  "PerceptionsOfDiscriminationAgainstAsianAmericans", 
+  "PerceptionsOfDiscriminationAgainstNativeAmericans", 
+  "PerceptionsOfDiscriminationAgainstImmigrants", 
+  "PerceptionsOfDiscriminationAgainstLatinos", 
+  "PerceptionsOfDiscriminationAgainstGaysAndLesbians",
+  "PerceptionsOfDiscriminationAgainstMuslims",
+  "Religion"
+)
+
+```
+
+
+# Look for exploratory plots in the other documents
+
+# Binomial Logistic Regression
+
+## Model
+
+```{r}
+library(vcd)
+library(tidyverse)
+library(corrplot)
+```
+
+```{r}
+model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ PrimaryRace +
+               Orientation + Gender + Age + 
+               HighestLevelOfEducation + CommunityLivedIn +
+               TreatedUnfairlyOrDiscriminatedAgainst + 
+               DiscriminationImpactOnLifeSatisfaction + 
+               PerceptionsOfDiscriminationAgainstWhites + 
+               PerceptionsOfDiscriminationAgainstBlacks +
+               PerceptionsOfDiscriminationAgainstAsianAmericans + 
+               PerceptionsOfDiscriminationAgainstNativeAmericans + 
+               PerceptionsOfDiscriminationAgainstImmigrants + 
+               PerceptionsOfDiscriminationAgainstLatinos + 
+               PerceptionsOfDiscriminationAgainstGaysAndLesbians + 
+               PerceptionsOfDiscriminationAgainstMuslims +
+               Religion, 
+             
+        data = dataset_clean, family = "binomial")
+```
+
+### Check VIF values
+```{r}
+# Check multicollinearity using VIF
+vif(model)
+```
+
+
+
+
+```{r}
+## # Extract odds ratios
+## odds_ratios <- exp(coef(model))
+## 
+## # Get confidence intervals for coefficients
+## conf_intervals <- exp(confint(model))
+## 
+## # Extract p-values
+## p_values <- summary(model)$coefficients[, 4]
+## 
+## # Combine everything into a single data frame
+## results_model <- data.frame(
+##   OddsRatio = odds_ratios,
+##   LowerCI = conf_intervals[, 1],
+##   UpperCI = conf_intervals[, 2],
+##   PValue = p_values
+## )
+## 
+## # Display results
+## results_model
+```
+
+
+## Perform stepwise selection to select best parameters
+```{r}
+# Perform stepwise selection
+model_stepwise <- step(model, 
+                       direction = "both",
+                       trace = 0)
+```
+
+### Check VIF Values
+```{r}
+# Check multicollinearity using VIF
+vif(model_stepwise)
+```
+
+## Extract Odds for each variable in the stepwise model
+```{r}
+# Extract odds ratios
+odds_ratios <- exp(coef(model_stepwise))
+
+# Get confidence intervals for coefficients
+conf_intervals <- exp(confint(model_stepwise))
+
+# Extract p-values
+p_values <- summary(model_stepwise)$coefficients[, 4]
+
+# Combine everything into a single data frame
+results_model_stepwise <- data.frame(
+  OddsRatio = odds_ratios,
+  LowerCI = conf_intervals[, 1],
+  UpperCI = conf_intervals[, 2],
+  PValue = p_values
+)
+
+# Display results
+results_model_stepwise
+```
+
+
+## Plot showing odds
+```{r}
+# Filter out only significant variables (p-value < 0.05)
+significant_data <- results_model_stepwise[results_model_stepwise$PValue < 0.051, ]
+
+# Create the plot with inverted axes and CI shown as error bars
+ggplot(significant_data, aes(y = rownames(significant_data), x = OddsRatio)) +
+  geom_point(size = 4, color = "blue") +  # Plot the odds ratio as points
+  geom_errorbarh(aes(xmin = LowerCI, xmax = UpperCI), height = 0.2, color = "black") +  # Add horizontal error bars
+  labs(title = "Significant Variables with Confidence Intervals (Odds Ratio)",
+       x = "Odds Ratio",
+       y = "Variables") +
+  theme(axis.text.y = element_text(angle = 0, hjust = 1))  # Keep y-axis labels horizontal
+  theme(plot.margin = margin(1, 2, 1, 1, "cm"))  # Adjust margins for larger size
+
+# Save the plot with larger dimensions
+ggsave("significant_variables_plot.png", width = 12, height = 8)
+```
+
+
+
+```{r}
+# Filter for significant variables (p-value < 0.05)
+significant_data <- model_stepwise |> 
+  filter(PValue < 0.05)
+
+# Prepare data for plotting
+# You might need to adjust this section to ensure the data is in long format with appropriate variable names
+plot_data <- significant_data |>
+  select(Variable, OddsRatio) |>
+  mutate(Variable = factor(Variable, levels = unique(Variable)))
+
+# Create the boxplot
+ggplot(plot_data, aes(x = Variable, y = OddsRatio)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Significant Variables (Odds Ratio)",
+       x = "Variables",
+       y = "Odds Ratio") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+

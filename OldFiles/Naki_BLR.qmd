@@ -210,6 +210,7 @@ table(dataset_clean$S2_RACE_PRIME)
 table(dataset_clean$MAIN_ETH_QUOTA)
 
 ```
+
 ```{r}
 # List of columns to be transformed
 cols <- c("Q629R1", "Q629R2", "Q629R3", "Q629R4", "Q629R5", "Q629R6", "Q629R7")
@@ -231,7 +232,6 @@ for (col in c("Q629R1_racialbackground", "Q629R2_skincolor", "Q629R3_gender",
   print(table(dataset_clean[[col]]))  # Access the column dynamically
 }
 ```
-
 
 ```{r}
 # Checking for levels in the model
@@ -268,7 +268,6 @@ summary(model)
 #prop.table(table(dataset_clean$Q629R2))
 # Repeat for other variables
 ```
-
 
 ```{r}
 step_model <- step(model, direction = "both")

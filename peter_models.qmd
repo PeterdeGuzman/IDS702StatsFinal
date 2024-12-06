@@ -7,10 +7,82 @@ editor: visual
 
 ## 
 
+# Loading Packages
+
+```{r}
+library(tidyverse)
+library(ordinal)
+library(car)
+library(brant)
+library(MASS)
+```
+
 # Loading data
+
+```{r}
+load("/Users/pdeguz01/Documents/git/Data/2020 CMPS/Output/2020cmps_clean.RData")
+```
 
 # Running chi-square tests
 
+```{r}
+# Create a summary table for all categorical variables
+variables <- c("Q29", "Q271", "S2_RACE_PRIME", "S3", "S3B", "S5_AGE", "S13", "S14", "S7", "Q21", "S2_M", "Q627", "Q628", "Q629R1", "Religion", "educ", "sex_orientation", "rural", "white", "race_recoded", "age_recoded")
+
+
+# Chi-square tests for each variable
+chi_square_results <- lapply(variables, function(var) {
+  chisq.test(table(dataset_clean[[var]], dataset_clean$Q29))
+})
+
+# Print chi-square results
+names(chi_square_results) <- variables
+print(chi_square_results)
+```
+
+| Variable | Chi-Sq Test Statistic | Degrees of Freedom (df) | p-value |
+|----|----|----|----|
+| Q271 | 291.49 | 12 | \< 2.2e-16 |
+| S2_RACE_PRIME | 291.12 | 21 | \< 2.2e-16 |
+| S3 | 101.7 | 15 | 6.196e-15 |
+| S3B | 296.35 | 9 | \< 2.2e-16 |
+| S5_AGE | NaN | 18 | NA |
+| S13 | 710.69 | 18 | \< 2.2e-16 |
+| S14 | 196.79 | 12 | \< 2.2e-16 |
+| S7 | 148.62 | 6 | \< 2.2e-16 |
+| Q21 | 1284.1 | 9 | \< 2.2e-16 |
+| S2_M | 6.0327 | 3 | 0.11 |
+| Q627 | 246.82 | 3 | \< 2.2e-16 |
+| Q628 | 9.0318 | 6 | 0.1718 |
+| Q629R1 | 6.9533 | 3 | 0.0734 |
+| Religion | 562.39 | 45 | \< 2.2e-16 |
+| educ | 608.65 | 6 | \< 2.2e-16 |
+| sex_orientation | 55.679 | 6 | 3.379e-10 |
+| rural/urban&suburban | 83.719 | 3 | \< 2.2e-16 |
+| white/non-white | 75.137 | 3 | 3.386e-16 |
+| race_recoded | 276.36 | 18 | \< 2.2e-16 |
+| age_recoded | 396.97 | 15 | \< 2.2e-16 |
+
+## Takeaways from Chi-Square Test
+
+
 # Fitting OLR Model
+```{r}
+
+```
+
+## Interpretation
 
 # Fitting MLR Model
+```{r}
+
+```
+
+## Interpretation
+
+# Fitting Proportional Odds Model
+```{r}
+
+```
+
+## Interpretation

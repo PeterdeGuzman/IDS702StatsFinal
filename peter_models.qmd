@@ -97,6 +97,13 @@ There appears to be a significant relationship between the following variables a
 library(MASS) # package for model
 library(caret) # package for confusion matrix
 
+dataset_clean$Q29_reordered  <- factor(dataset_clean$Q29,
+                            levels = c("(4) Not at all interested in politics",
+                                     "(3) Not that interested in politics",
+                                     "(2) Somewhat interested",
+                                     "(1) Very interested in politics"))
+
+
 dataset_clean$Q271_reordered <- factor(dataset_clean$Q271,
                             levels = c("(5) Not at all important",
                                      "(4) Slightly important",
@@ -104,12 +111,10 @@ dataset_clean$Q271_reordered <- factor(dataset_clean$Q271,
                                      "(2) Very important",
                                      "(1) Extremely important"))
 
-ord_mod <- polr(Q29 ~ Q271_reordered + race_recoded + age_recoded +
-            rural + # Rural or Urban/Suburban
-            sex_orientation + # Sexual Orientation
-            educ + # Educational Attainment
+ord_mod <- polr(Q29 ~ Q271_reordered + race_recoded +
+                  age_recoded +
+            educ +  # Educational Attainment
             S3B + # Gender
-            S7 + # Nativity
             Q21, # Party affiliation
           data = dataset_clean, Hess=TRUE)
 
@@ -137,6 +142,56 @@ new_dataset <- data.frame
 
 predict(ord_mod, new_dataset)
 ```
+
+# Fitting OLR with interaction terms
+
+
+
+```{r}
+library(MASS) # package for model
+library(caret) # package for confusion matrix
+
+# dataset_clean$Q271_reordered <- factor(dataset_clean$Q271,
+#                             levels = c("(5) Not at all important",
+#                                      "(4) Slightly important",
+#                                      "(3) Moderately important",
+#                                      "(2) Very important",
+#                                      "(1) Extremely important"))
+
+ord_mod_interactions <- polr(Q29 ~ Q271_reordered + race_recoded + age_recoded +
+            rural + # Rural or Urban/Suburban
+            sex_orientation + # Sexual Orientation
+            educ + # Educational Attainment
+            S3B + # Gender
+            S7 + # Nativity
+            Q21, # Party affiliation
+          data = dataset_clean, Hess=TRUE)
+
+summary(ord_mod_interactions)
+
+
+pvals_interact <- pnorm(-abs(summary(ord_mod_interactions)$coef[,"t value"]))*2
+ctable_interact <- cbind(summary(ord_mod_interactions)$coef,pvals)
+
+ctable_interact
+
+(exp_coefs_interact <- exp(cbind(OR=coef(ord_mod_interactions),confint(ord_mod_interactions))))
+
+head(ord_mod_interactions$fitted.values)
+head(predict(ord_mod_interactions))
+
+confusionMatrix(predict(ord_mod_interactions), dataset_clean$Q29, mode="everything")
+
+```
+
+```{r}
+# generate predictions for the ordinal model with interactions
+
+new_dataset <- data.frame
+
+predict(ord_mod, new_dataset)
+```
+
 
 # Fitting MLR Model
 

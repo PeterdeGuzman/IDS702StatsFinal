@@ -166,6 +166,9 @@ ord_mod_interactions <- polr(Q29 ~ Q271_reordered + race_recoded +
             # Q271_reordered * race_recoded,  # Interaction term
           data = dataset_clean, Hess=TRUE)
 
+# Default accuracy is 0.4476
+# Try interaction between Q271 * race
+
 summary(ord_mod_interactions)
 
 

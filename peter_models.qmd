@@ -158,12 +158,10 @@ library(caret) # package for confusion matrix
 #                                      "(2) Very important",
 #                                      "(1) Extremely important"))
 
-ord_mod_interactions <- polr(Q29 ~ Q271_reordered + race_recoded + age_recoded +
-            rural + # Rural or Urban/Suburban
-            sex_orientation + # Sexual Orientation
-            educ + # Educational Attainment
+ord_mod_interactions <- polr(Q29 ~ Q271_reordered + race_recoded +
+                  age_recoded +
+            educ +  # Educational Attainment
             S3B + # Gender
-            S7 + # Nativity
             Q21, # Party affiliation
           data = dataset_clean, Hess=TRUE)
 
@@ -206,16 +204,19 @@ library(effects)
 
 # ensure outcome variable is a factor but not ordered
 dataset_clean$Q29_unordered <- factor(dataset_clean$Q29, ordered = FALSE)
+dataset_clean$Q271_simple <- as.numeric(dataset_clean$Q271)
 
 # Fit multinomial model
 m_mult <- multinom(Q29_unordered ~ Q271 + race_recoded + age_recoded +
-            rural + # Rural or Urban/Suburban
-            sex_orientation + # Sexual Orientation
+            # rural + # Rural or Urban/Suburban
+            # sex_orientation + # Sexual Orientation
             educ + # Educational Attainment
             S3B + # Gender
-            S7 + # Nativity
+            # S7 + # Nativity
             Q21, # Party affiliation
           data = dataset_clean)
+
+
 
 # Calculate predicted probabilities of marginal effects
 # Create sequence of Q271_simple values
@@ -301,8 +302,12 @@ print(AIC(m_mult))
 
 # Calculate predicted probabilities
 pred_data <- expand.grid(
-    Q271_simple = seq(1, 5, by = 0.1),
-    race_recoded = unique(dataset_clean$race_recoded)
+    Q271 = unique(dataset_clean$Q271),
+    age_recoded = unique(dataset_clean$age_recoded),
+    race_recoded = unique(dataset_clean$race_recoded),
+    educ = unique(dataset_clean$educ),
+    S3B = unique(dataset_clean$S3B),
+    Q21 = unique(dataset_clean$Q21)
 )
 
 # Get predictions
@@ -318,7 +323,7 @@ pred_long <- pred_data %>%
 
 # Plot for each outcome level
 p2 <- ggplot(pred_long, 
-             aes(x = Q271_simple, y = probability, color = race_recoded)) +
+             aes(x = Q271, y = probability, color = race_recoded)) +
     geom_line() +
     facet_wrap(~interest_level) +
     theme_minimal() +

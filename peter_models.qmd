@@ -91,17 +91,206 @@ There appears to be a significant relationship between the following variables a
 
 -   Nativity (born in US or other)
 
-# Fitting OLR Model
+# Fitting OLR Model Using polr()
+
+```{r}
+library(MASS) # package for model
+library(caret) # package for confusion matrix
+
+dataset_clean$Q271_reordered <- factor(dataset_clean$Q271,
+                            levels = c("(5) Not at all important",
+                                     "(4) Slightly important",
+                                     "(3) Moderately important",
+                                     "(2) Very important",
+                                     "(1) Extremely important"))
+
+ord_mod <- polr(Q29 ~ Q271_reordered + race_recoded + age_recoded +
+            rural + # Rural or Urban/Suburban
+            sex_orientation + # Sexual Orientation
+            educ + # Educational Attainment
+            S3B + # Gender
+            S7 + # Nativity
+            Q21, # Party affiliation
+          data = dataset_clean, Hess=TRUE)
+
+summary(ord_mod)
+
+
+pvals <- pnorm(-abs(summary(ord_mod)$coef[,"t value"]))*2
+ctable <- cbind(summary(ord_mod)$coef,pvals)
+
+ctable
+
+(exp_coefs <- exp(cbind(OR=coef(ord_mod),confint(ord_mod))))
+
+head(ord_mod$fitted.values)
+head(predict(ord_mod))
+
+confusionMatrix(predict(ord_mod), dataset_clean$Q29, mode="everything")
+
+```
+
+```{r}
+# generate predictions for the ordinal model
+
+new_dataset <- data.frame
+
+predict(ord_mod, new_dataset)
+```
+
+# Fitting MLR Model
+
+```{r}
+
+# Load packages
+library(nnet)  # for multinomial logistic regression
+library(tidyverse)
+library(car)
+library(effects)
+
+
+# ensure outcome variable is a factor but not ordered
+dataset_clean$Q29_unordered <- factor(dataset_clean$Q29, ordered = FALSE)
+
+# Fit multinomial model
+m_mult <- multinom(Q29_unordered ~ Q271 + race_recoded + age_recoded +
+            rural + # Rural or Urban/Suburban
+            sex_orientation + # Sexual Orientation
+            educ + # Educational Attainment
+            S3B + # Gender
+            S7 + # Nativity
+            Q21, # Party affiliation
+          data = dataset_clean)
+
+# Calculate predicted probabilities of marginal effects
+# Create sequence of Q271_simple values
+x_vals <- seq(min(dataset_clean$Q271_simple), max(dataset_clean$Q271_simple), length.out = 100)
+
+# Function to calculate average predicted probabilities
+get_avg_probs <- function(model, newdata, var_name) {
+    preds <- predict(model, newdata = newdata, type = "probs")
+    colMeans(preds)
+}
+
+# Calculate marginal effects by race
+races <- unique(dataset_clean$race_recoded)
+marg_effects <- list()
+
+for(race in races) {
+    probs <- matrix(0, nrow = length(x_vals), ncol = length(levels(dataset_clean$Q29_unordered)))
+    for(i in seq_along(x_vals)) {
+        temp_data <- dataset_clean
+        temp_data$Q271_simple <- x_vals[i]
+        temp_data$race_major <- race
+        probs[i,] <- get_avg_probs(m_mult, temp_data, "Q271_simple")
+    }
+    marg_effects[[race]] <- data.frame(
+        x = x_vals,
+        race = race,
+        prob1 = probs[,1],
+        prob2 = probs[,2],
+        prob3 = probs[,3],
+        prob4 = probs[,4]
+    )
+}
+
+# Combine all marginal effects
+marg_effects_df <- bind_rows(marg_effects)
+
+# Create plots for marginal effects
+# Reshape data for plotting
+marg_effects_long <- marg_effects_df %>%
+    pivot_longer(cols = starts_with("prob"),
+                names_to = "outcome",
+                values_to = "probability") %>%
+    mutate(outcome = factor(outcome,
+                          levels = paste0("prob", 1:4),
+                          labels = levels(dataset_clean$Q29_unordered)))
+
+# Plot marginal effects
+p1 <- ggplot(marg_effects_long, 
+             aes(x = x, y = probability, color = outcome)) +
+    geom_line() +
+    facet_wrap(~race) +
+    theme_minimal() +
+    labs(title = "Marginal Effects of Racial Identity Importance by Race",
+         x = "Importance of Racial Identity",
+         y = "Predicted Probability",
+         color = "Political Interest Level") +
+    theme(legend.position = "bottom")
+print(p1)
+
+# Model fit statistics and comparisons
+print("Model summaries:")
+print(summary(m_mult))
+
+# Calculate McFadden's R-squared
+null_model <- multinom(Q29_unordered ~ 1, data = dataset_clean)
+mcfadden_r2 <- 1 - logLik(m_mult)/logLik(null_model)
+
+print("McFadden's R-squared:")
+print(mcfadden_r2)
+
+# Classification accuracy
+pred_class <- predict(m_mult)
+conf_matrix <- table(pred_class, dataset_clean$Q29_unordered)
+accuracy <- sum(diag(conf_matrix))/sum(conf_matrix)
+
+print("Classification accuracy:")
+print(accuracy)
+print("Confusion Matrix:")
+print(conf_matrix)
+
+# Print AIC
+print(AIC(m_mult))
+
+# Calculate predicted probabilities
+pred_data <- expand.grid(
+    Q271_simple = seq(1, 5, by = 0.1),
+    race_recoded = unique(dataset_clean$race_recoded)
+)
+
+# Get predictions
+preds <- predict(m_mult, newdata = pred_data, type = "probs")
+pred_data <- cbind(pred_data, as.data.frame(preds))
+
+# Create separate plots for each outcome level
+pred_long <- pred_data %>%
+    pivot_longer(cols = starts_with("("),
+                names_to = "interest_level",
+                values_to = "probability")
+
+
+# Plot for each outcome level
+p2 <- ggplot(pred_long, 
+             aes(x = Q271_simple, y = probability, color = race_recoded)) +
+    geom_line() +
+    facet_wrap(~interest_level) +
+    theme_minimal() +
+    labs(title = "Predicted Probabilities by Outcome Level",
+         x = "Importance of Racial Identity",
+         y = "Probability",
+         color = "Race/Ethnicity") +
+    theme(legend.position = "bottom")
+print(p2)
+
+
+```
+
+## Interpretation
+
+
+# Fitting OLR Model Using clm() (Following Jennifer's method)
 
 ```{r}
 dataset_clean$Q271_simple <- as.numeric(dataset_clean$Q271)
-dataset_clean$Q271 <- factor(dataset_clean$Q271,
-                            levels = c("(5) Not at all important",
-                                     "(4) Slightly important",
-                                     "(3) Moderately important", 
-                                     "(2) Very important",
-                                     "(1) Extremely important"),
-                            ordered = TRUE)
+# dataset_clean$Q271 <- factor(dataset_clean$Q271,
+#                             levels = c("(5) Not at all important",
+#                                      "(4) Slightly important",
+#                                      "(3) Moderately important",
+#                                      "(2) Very important",
+#                                      "(1) Extremely important"),
+#                             ordered = TRUE)
 
 m1 <- clm(Q29 ~ Q271 + race_recoded + age_recoded +
             rural + # Rural or Urban/Suburban
@@ -235,7 +424,7 @@ print(odds_ratios)
     2.  Log-likelihood is -21125.27
 2.  Proportional Odds Assumption
 
--   The nominal test for Model 1 shows significant violations (p \< 0.05 for all predictor variables except for Religion
+-   The nominal test for Model 1 shows significant violations (p \< 0.05 for all predictor variables except for Religion)
 
 -   This suggests the effect of racial identity importance varies across different levels of political interest
 
@@ -261,182 +450,5 @@ print(odds_ratios)
     1.  The different levels of racial identity importance are all significant
     2.  There are differences among racial/ethnic groups
 3.  Predicted Relationships (from plot)
-    1.  There appears to be a positive relationship between racial identity importance and political interest
+    1.  
 
-# Fitting MLR Model
-
-```{r}
-
-# Load packages
-library(nnet)  # for multinomial logistic regression
-library(tidyverse)
-library(car)
-library(effects)
-
-
-# ensure outcome variable is a factor but not ordered
-dataset_clean$Q29_unordered <- factor(dataset_clean$Q29, ordered = FALSE)
-
-# Fit multinomial model
-m_mult <- multinom(Q29_unordered ~ Q271 + race_recoded + age_recoded +
-            rural + # Rural or Urban/Suburban
-            sex_orientation + # Sexual Orientation
-            Religion + 
-            educ + # Educational Attainment
-            S3B + # Gender
-            S7 + # Nativity
-            Q21, # Party affiliation
-          data = dataset_clean)
-
-# Calculate predicted probabilities of marginal effects
-# Create sequence of Q271_simple values
-x_vals <- seq(min(dataset_clean$Q271_simple), max(dataset_clean$Q271_simple), length.out = 100)
-
-# Function to calculate average predicted probabilities
-get_avg_probs <- function(model, newdata, var_name) {
-    preds <- predict(model, newdata = newdata, type = "probs")
-    colMeans(preds)
-}
-
-# Calculate marginal effects by race
-races <- unique(dataset_clean$race_recoded)
-marg_effects <- list()
-
-for(race in races) {
-    probs <- matrix(0, nrow = length(x_vals), ncol = length(levels(dataset_clean$Q29_unordered)))
-    for(i in seq_along(x_vals)) {
-        temp_data <- dataset_clean
-        temp_data$Q271_simple <- x_vals[i]
-        temp_data$race_major <- race
-        probs[i,] <- get_avg_probs(m_mult, temp_data, "Q271_simple")
-    }
-    marg_effects[[race]] <- data.frame(
-        x = x_vals,
-        race = race,
-        prob1 = probs[,1],
-        prob2 = probs[,2],
-        prob3 = probs[,3],
-        prob4 = probs[,4]
-    )
-}
-
-# Combine all marginal effects
-marg_effects_df <- bind_rows(marg_effects)
-
-# Create plots for marginal effects
-# Reshape data for plotting
-marg_effects_long <- marg_effects_df %>%
-    pivot_longer(cols = starts_with("prob"),
-                names_to = "outcome",
-                values_to = "probability") %>%
-    mutate(outcome = factor(outcome,
-                          levels = paste0("prob", 1:4),
-                          labels = levels(dataset_clean$Q29_unordered)))
-
-# Plot marginal effects
-p1 <- ggplot(marg_effects_long, 
-             aes(x = x, y = probability, color = outcome)) +
-    geom_line() +
-    facet_wrap(~race) +
-    theme_minimal() +
-    labs(title = "Marginal Effects of Racial Identity Importance by Race",
-         x = "Importance of Racial Identity",
-         y = "Predicted Probability",
-         color = "Political Interest Level") +
-    theme(legend.position = "bottom")
-print(p1)
-
-# Model fit statistics and comparisons
-print("Model summaries:")
-print(summary(m_mult))
-
-# Calculate McFadden's R-squared
-null_model <- multinom(Q29_unordered ~ 1, data = dataset_clean)
-mcfadden_r2 <- 1 - logLik(m_mult)/logLik(null_model)
-
-print("McFadden's R-squared:")
-print(Basic = mcfadden_r2)
-
-# Classification accuracy
-pred_class <- predict(m_mult)
-conf_matrix <- table(pred_class, dataset_clean$Q29_unordered)
-accuracy <- sum(diag(conf_matrix))/sum(conf_matrix)
-
-print("Classification accuracy:")
-print(accuracy)
-print("Confusion Matrix:")
-print(conf_matrix)
-
-# Print AIC
-print(Multinomial = AIC(m_mult))
-
-# Calculate predicted probabilities
-pred_data <- expand.grid(
-    Q271_simple = seq(1, 5, by = 0.1),
-    race_recoded = unique(dataset_clean$race_recoded)
-)
-
-# Get predictions
-preds <- predict(m_mult, newdata = pred_data, type = "probs")
-pred_data <- cbind(pred_data, as.data.frame(preds))
-
-# Create separate plots for each outcome level
-pred_long <- pred_data %>%
-    pivot_longer(cols = starts_with("("),
-                names_to = "interest_level",
-                values_to = "probability")
-
-
-# Plot for each outcome level
-p2 <- ggplot(pred_long, 
-             aes(x = Q271_simple, y = probability, color = race_recoded)) +
-    geom_line() +
-    facet_wrap(~interest_level) +
-    theme_minimal() +
-    labs(title = "Predicted Probabilities by Outcome Level",
-         x = "Importance of Racial Identity",
-         y = "Probability",
-         color = "Race/Ethnicity") +
-    theme(legend.position = "bottom")
-print(p2)
-
-
-```
-
-## Interpretation
-
-# Fitting Partial Proportional Odds Model
-
-```{r}
-# Load required packages
-library(VGAM)
-library(ordinal)
-library(tidyverse)
-library(sandwich)
-
-# Create ordered 3-category version
-
-# Fit PPO model
-
-# create prediction data
-
-# get predictions for PPO model
-
-# Reshape for plotting
-
-# create plot
-
-# Model summaries
-
-# Cross-validation
-
-# calculate variable importance for PPO model
-
-
-
-
-```
-
-## Interpretation
-
-# PPO Model with Interactions

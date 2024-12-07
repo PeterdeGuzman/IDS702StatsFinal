@@ -151,18 +151,19 @@ predict(ord_mod, new_dataset)
 library(MASS) # package for model
 library(caret) # package for confusion matrix
 
-# dataset_clean$Q271_reordered <- factor(dataset_clean$Q271,
-#                             levels = c("(5) Not at all important",
-#                                      "(4) Slightly important",
-#                                      "(3) Moderately important",
-#                                      "(2) Very important",
-#                                      "(1) Extremely important"))
+dataset_clean$Q271_reordered <- factor(dataset_clean$Q271,
+                            levels = c("(5) Not at all important",
+                                     "(4) Slightly important",
+                                     "(3) Moderately important",
+                                     "(2) Very important",
+                                     "(1) Extremely important"))
 
 ord_mod_interactions <- polr(Q29 ~ Q271_reordered + race_recoded +
                   age_recoded +
             educ +  # Educational Attainment
             S3B + # Gender
             Q21, # Party affiliation
+            # Q271_reordered * race_recoded,  # Interaction term
           data = dataset_clean, Hess=TRUE)
 
 summary(ord_mod_interactions)

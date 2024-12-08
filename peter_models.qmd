@@ -189,7 +189,11 @@ confusionMatrix(predict(ord_mod_interactions), dataset_clean$Q29, mode="everythi
 
 ```
 
-
+# Testing proportional odds assumption with Brant test
+```{r}
+library(brant)
+brant(ord_mod_interactions)
+```
 
 
 # Fitting MLR Model
@@ -354,4 +358,12 @@ new_dataset <- data.frame(race_recoded=c("White", "Black", "Asian American", "La
 
 
 predict(m_mult, new_dataset, type = "probs")
+```
+# Comparing confusion matrix
+```{r}
+# Confusion matrix for ordinal model with interactions
+confusionMatrix(predict(ord_mod_interactions), dataset_clean$Q29, mode="everything")
+
+# Confusion matrix for multinomial model
+conf_matrix
 ```

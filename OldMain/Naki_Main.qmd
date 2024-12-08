@@ -418,14 +418,11 @@ newdata <- dataset_clean[, c("ImportanceOfStoppingDiscriminationAgainstMinoritie
                              "PerceptionsOfDiscriminationAgainstNativeAmericans", "PerceptionsOfDiscriminationAgainstLatinos")]
 ```
 
-
-
 ```{r}
 actual_data <- dataset_clean$ImportanceOfStoppingDiscriminationAgainstMinorities
 predicted_probs <- predict(model_stepwise, newdata = newdata, type = "response")
 predicted_probs
 ```
-
 
 ```{r}
 library(pROC)

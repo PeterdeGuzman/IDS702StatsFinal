@@ -4,7 +4,6 @@ format: html
 editor: visual
 ---
 
-
 ```{r}
 
 # Load the packages
@@ -39,7 +38,6 @@ The dataset contains 17,545 rows, with each row representing an individual respo
 
 This particular analysis focused on a single topic within the larger dataset. Specifically, our research question is: **How do personal experiences with racism, in combination with demographic factors such as race, gender, and education, influence the importance respondents place on policies aimed at addressing racial and ethnic discrimination, controlling for other social and political factors?**
 
-
 ```{r}
 # Calculate proportions
 proportions <- prop.table(table(dataset$Q1R5))
@@ -57,12 +55,12 @@ pie(proportions,
     col = c("lightblue", "salmon"))
 ```
 
-
 The outcome variable Q1R5 (Stopping discrimination against racial/ethnic minorities) for this Research Question is a binary variable which captures whether respondents view stopping racial and ethnic discrimination as an important issue (i.e., Important OR Not Important). Therefore, we will make use Logistic regression as it is suitable for modeling binary outcome variables and allows for the inclusion of both predictor and control variables. While the distribution is skewed (74.25% say "No"), logistic regression is robust to imbalance in the outcome variable. However, extreme imbalance (e.g., 95%-5%) might require additional techniques like resampling or penalized logistic regression.
 
 We can expect the analysis to reveal whether and to what extent experiences with racism predict the importance of racial/ethnic discrimination policy, controlling for demographic factors.
 
 ## Extracting relevant columns
+
 ```{r}
 # Define the required columns
 required_cols <- c(
@@ -107,6 +105,7 @@ required_cols <- c(
 ```
 
 ## Cleaning and factoring data for all columns
+
 ```{r}
 # Create a new dataframe with selected variables
 dataset_new <- dataset[, required_cols]
@@ -159,6 +158,7 @@ head(dataset_new)
 ```
 
 ## Consolidating Religion to one column
+
 ```{r}
 # Convert individual religion columns to numeric
 for (i in 1:15) {
@@ -260,6 +260,7 @@ head(dataset_clean)
 ```
 
 ## Rename the remaining column headers for ease of understanding
+
 ```{r}
 colnames(dataset_clean)
 colnames(dataset_clean) <- c(
@@ -282,9 +283,8 @@ colnames(dataset_clean) <- c(
   "PerceptionsOfDiscriminationAgainstMuslims",
   "Religion"
 )
-
+dataset_clean.head()
 ```
-
 
 # Look for exploratory plots in the other documents
 
@@ -318,13 +318,11 @@ model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ PrimaryRace +
 ```
 
 ### Check VIF values
+
 ```{r}
 # Check multicollinearity using VIF
 vif(model)
 ```
-
-
-
 
 ```{r}
 ## # Extract odds ratios
@@ -348,8 +346,8 @@ vif(model)
 ## results_model
 ```
 
-
 ## Perform stepwise selection to select best parameters
+
 ```{r}
 # Perform stepwise selection
 model_stepwise <- step(model, 
@@ -357,13 +355,19 @@ model_stepwise <- step(model,
                        trace = 0)
 ```
 
+```{r}
+model_stepwise
+```
+
 ### Check VIF Values
+
 ```{r}
 # Check multicollinearity using VIF
 vif(model_stepwise)
 ```
 
 ## Extract Odds for each variable in the stepwise model
+
 ```{r}
 # Extract odds ratios
 odds_ratios <- exp(coef(model_stepwise))
@@ -386,8 +390,8 @@ results_model_stepwise <- data.frame(
 results_model_stepwise
 ```
 
-
 ## Plot showing odds
+
 ```{r}
 # Filter out only significant variables (p-value < 0.05)
 significant_data <- results_model_stepwise[results_model_stepwise$PValue < 0.051, ]
@@ -406,27 +410,26 @@ ggplot(significant_data, aes(y = rownames(significant_data), x = OddsRatio)) +
 ggsave("significant_variables_plot.png", width = 12, height = 8)
 ```
 
-
-
 ```{r}
-# Filter for significant variables (p-value < 0.05)
-significant_data <- model_stepwise |> 
-  filter(PValue < 0.05)
-
-# Prepare data for plotting
-# You might need to adjust this section to ensure the data is in long format with appropriate variable names
-plot_data <- significant_data |>
-  select(Variable, OddsRatio) |>
-  mutate(Variable = factor(Variable, levels = unique(Variable)))
-
-# Create the boxplot
-ggplot(plot_data, aes(x = Variable, y = OddsRatio)) +
-  geom_boxplot() +
-  labs(title = "Boxplot of Significant Variables (Odds Ratio)",
-       x = "Variables",
-       y = "Odds Ratio") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
+newdata <- dataset_clean[, c("ImportanceOfStoppingDiscriminationAgainstMinorities", 
+                             "PrimaryRace", "Gender", "HighestLevelOfEducation", "TreatedUnfairlyOrDiscriminatedAgainst",
+                             "DiscriminationImpactOnLifeSatisfaction", "PerceptionsOfDiscriminationAgainstWhites",
+                             "PerceptionsOfDiscriminationAgainstBlacks", "PerceptionsOfDiscriminationAgainstAsianAmericans",
+                             "PerceptionsOfDiscriminationAgainstNativeAmericans", "PerceptionsOfDiscriminationAgainstLatinos")]
 ```
 
 
+
+```{r}
+actual_data <- dataset_clean$ImportanceOfStoppingDiscriminationAgainstMinorities
+predicted_probs <- predict(model_stepwise, newdata = newdata, type = "response")
+predicted_probs
+```
+
+
+```{r}
+library(pROC)
+roc_curve <- roc(actual_data, predicted_probs)  # predicted_probs = probabilities for the positive class
+plot(roc_curve)
+auc(roc_curve)
+```

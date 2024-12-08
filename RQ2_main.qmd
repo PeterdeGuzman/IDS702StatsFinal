@@ -1,0 +1,129 @@
+---
+title: "RQ2_main"
+format: 
+      pdf:
+       code-overflow: wrap
+editor: visual
+---
+
+## Quarto
+The `echo: false` option disables the printing of code (only output is displayed).
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,   # Suppress messages
+  warning = FALSE    # Suppress warnings
+)
+```
+
+
+```{r echo = TRUE}
+# Load necessary libraries
+library(dplyr)   # Provides %>% and mutate
+library(tidyverse)  # Optionally load the entire tidyverse if needed
+library(pROC)
+```
+
+```{r echo = TRUE}
+file_path <- "/Users/nakiyahdhariwala/StatsProject/39096-0001-Data.rda"
+
+load(file_path)          # Load the RDA file
+ls()                     # List objects loaded into the environment
+dataset <- da39096.0001  # Access the dataset
+
+head(dataset)
+ncol(dataset)
+nrow(dataset)
+```
+
+
+```{r}
+# Define the required columns
+required_cols <- c(
+  # Outcome Variable: Stopping discrimination against racial/ethnic minorities
+  "Q1R5", 
+
+  # Demographic Variables
+  "S2_RACE_PRIME",   # Primary Race
+  "S3",              # SexualOrientation
+  "S3B",             # Gender
+  "S5_AGE",          # Age categories
+  "S13",             # Highest level of education
+  "S14",             # Community lived in
+
+  # Variables capturing experiences with racism
+  "Q629R1",          # Unfair treatment due to racial background/ethnicity
+  "Q629R2",          # Unfair treatment due to skin color
+  "Q629R3",          # Unfair treatment due to gender
+  "Q629R4",          # Unfair treatment due to sexuality/orientation
+  "Q629R5",          # Unfair treatment due to immigration status
+  "Q629R6",          # Unfair treatment due to religion
+  "Q629R7",          # Unfair treatment due to accent
+
+  "Q627",            # Treated unfairly or discriminated against because of your race, ethnicity, gender, sexuality, being an immigrant, religious heritage or having an accent?
+  "Q633",            # Discrimination impact on life satisfaction
+
+  # Religion-related variables
+  "Q58R1", "Q58R2", "Q58R3", "Q58R4", "Q58R5", "Q58R6", "Q58R7", 
+  "Q58R8", "Q58R9", "Q58R10", "Q58R11", "Q58R12", "Q58R13", 
+  "Q58R14", "Q58R15", # Various religious affiliations
+
+  # Perceptions of discrimination
+  "Q619_Q626R1",     # Perceptions of discrimination against Whites
+  "Q619_Q626R2",     # Perceptions of discrimination against Blacks
+  "Q619_Q626R3",     # Perceptions of discrimination against Asian Americans
+  "Q619_Q626R4",     # Perceptions of discrimination against Native Americans
+  "Q619_Q626R5",     # Perceptions of discrimination against Immigrants
+  "Q619_Q626R6",     # Perceptions of discrimination against Latinos
+  "Q619_Q626R7",     # Perceptions of discrimination against GaysAndLesbians
+  "Q619_Q626R8"      # Perceptions of discrimination against Muslims
+)
+```
+
+```{r}
+# Create a new dataframe with selected variables
+dataset_new <- dataset[, required_cols]
+
+# Recode the outcome variable 'Q1R5' for readability
+dataset_new$Q1R5 <- factor(
+  ifelse(
+    dataset_new$Q1R5 == "(0) NO TO: Stopping discrimination against racial/ethnic minorities", 
+    "Not important",
+    "Important"  # Remaining cases are "Important"
+  ),
+  levels = c("Not important", "Important") # Define factor levels
+)
+
+# Define the columns for perceptions of discrimination
+perception_cols <- c(
+  "Q619_Q626R1",  # Perceptions of discrimination against Whites
+  "Q619_Q626R2",  # Perceptions of discrimination against Blacks
+  "Q619_Q626R3",  # Perceptions of discrimination against Asian Americans
+  "Q619_Q626R4",  # Perceptions of discrimination against Native Americans
+  "Q619_Q626R5",  # Perceptions of discrimination against Immigrants
+  "Q619_Q626R6",  # Perceptions of discrimination against Latinos
+  "Q619_Q626R7",  # Perceptions of discrimination against GaysAndLesbians
+  "Q619_Q626R8",  # Perceptions of discrimination against Muslims
+  "Q633"          # Discrimination impact on life satisfaction
+)
+
+# Recode 'Don' as 'Don't know' and ensure columns remain factors
+dataset_new[perception_cols] <- lapply(dataset_new[perception_cols], function(x) {
+  x <- as.character(x)  # Temporarily convert to character for recoding
+  x <- ifelse(x == "(5) Don", "(5) Don't know", x)  # Recode 'Don' to 'Don't know'
+  factor(x)  # Convert back to factor
+})
+
+# Verify the changes in perception columns
+head(dataset_new[perception_cols])
+
+# Define required columns to convert to factors (if not already defined)
+# Assuming `required_cols` is previously defined; otherwise, specify explicitly
+dataset_new[required_cols] <- lapply(dataset_new[required_cols], as.factor)
+
+# Verify the structure of the dataset
+str(dataset_new[required_cols])
+
+# Display the first few rows to check the changes
+head(dataset_new)
+
+```

@@ -94,7 +94,9 @@ There appears to be a significant relationship between the following variables a
 # Prop Tables
 
 ```{r}
-
+library(janitor)
+tabyl(dataset_clean$Q29)
+tabyl(dataset_clean$Q271)
 
 ```
 
@@ -157,8 +159,6 @@ new_dataset <- data.frame(race_recoded=c("White", "Black", "Asian American", "La
 
 # Fitting OLR with interaction terms
 
-
-
 ```{r}
 library(MASS) # package for model
 library(caret) # package for confusion matrix
@@ -197,11 +197,53 @@ confusionMatrix(predict(ord_mod_interactions), dataset_clean$Q29, mode="everythi
 ```
 
 # Testing proportional odds assumption with Brant test
+
 ```{r}
 library(brant)
 brant(ord_mod_interactions)
 ```
 
+# Summary Table - OLR with Interactions
+
+| Variable | Odds Ratio | 2.5% (Confidence Interval) | 97.5% (Confidence Interval) |
+|------------------|------------------|------------------|------------------|
+| Q271 (4) Slightly important | 1.0338781 | 0.86761871 | 1.2317529 |
+| Q271 (3) Moderately important | 1.0228231 | 0.88466618 | 1.1826555 |
+| Q271 (2) Very important | 0.8366761 | 0.72314779 | 0.9680337 |
+| Q271 (1) Extremely important | 0.6069588 | 0.52449164 | 0.7024084 |
+| S3B(2) Woman | 1.5887610 | 1.36312914 | 1.8518245 |
+| S3B(3) Non-binary | 0.5380781 | 0.28888679 | 0.9978406 |
+| S3B(4) Something else (Specify) | 0.4648621 | 0.07401426 | 2.6422344 |
+| race Black | 1.1525119 | 1.04988995 | 1.2652177 |
+| race Asian American | 1.6819184 | 1.53325820 | 1.8451528 |
+| race Latino | 1.2583888 | 1.14546256 | 1.3825307 |
+| race AIAN | 1.4882734 | 1.27404185 | 1.7384045 |
+| race NHPI | 1.7838764 | 1.45756175 | 2.1825886 |
+| race Arab/MENA | 0.8628526 | 0.66889425 | 1.1122887 |
+| age 30-39 | 0.9698580 | 0.89048308 | 1.0563119 |
+| age 40-49 | 1.0813779 | 0.98549367 | 1.1865407 |
+| age 50-59 | 0.9107924 | 0.82952560 | 0.9996833 |
+| age 60-69 | 0.7553567 | 0.68762045 | 0.8297158 |
+| age 70+ | 0.5918432 | 0.52889988 | 0.6621363 |
+| educSome college experience | 0.6551005 | 0.60189454 | 0.7129797 |
+| educCollege graduate | 0.4476726 | 0.41528212 | 0.4825867 |
+| Q21(2) Democrat | 0.8823547 | 0.81416780 | 0.9562372 |
+| Q21(3) Independent | 1.7222132 | 1.58330889 | 1.8733830 |
+| Q21(4) Other party | 4.7003458 | 4.03685844 | 5.4748427 |
+| Q271 4) Slightly important:S3B(2) Woman | 1.0044380 | 0.78966197 | 1.2778491 |
+| Q271 (3) Moderately important:S3B(2) Woman | 1.0569625 | 0.87144637 | 1.2819704 |
+| Q271 (2) Very important:S3B(2) Woman | 1.0212671 | 0.84557349 | 1.2335590 |
+| Q271 (1) Extremely important:S3B(2) Woman | 1.2324558 | 1.02421823 | 1.4830676 |
+| Q271 (4) Slightly important:S3B(3) Non-binary | 1.5393710 | 0.46529911 | 5.0344630 |
+| Q271 (3) Moderately important:S3B(3) Non-binary | 1.5246008 | 0.57882727 | 4.0084234 |
+| Q271 (2) Very important:S3B(3) Non-binary | 1.9464262 | 0.77448045 | 4.8746428 |
+| Q271 (1) Extremely important:S3B(3) Non-binary | 1.1408623 | 0.45797295 | 2.8216144 |
+| Q271 (4) Slightly important:S3B(4) Something else (Specify) | 4.4125437 | 0.49596064 | 41.9119559 |
+| Q271 (3) Moderately important:S3B(4) Something else (Specify) | 0.5879278 | 0.05055911 | 4.9095993 |
+| Q271 2) Very important:S3B(4) Something else (Specify) | 9.6145175 | 0.70357378 | 160.9916657 |
+| Q271 1) Extremely important:S3B(4) Something else (Specify) | 1.5327973 | 0.20059858 | 12.5345043 |
+
+# Producing odds ratio plot for ordinal model with interactions
 
 # Fitting MLR Model
 
@@ -349,7 +391,6 @@ print(p2)
 
 ## Interpretation
 
-
 ```{r}
 # generate predictions for the ordinal model and the ordinal model  with interactions
 predict(ord_mod, new_dataset, type="probs")
@@ -366,7 +407,9 @@ new_dataset <- data.frame(race_recoded=c("White", "Black", "Asian American", "La
 
 predict(m_mult, new_dataset, type = "probs")
 ```
+
 # Comparing confusion matrix
+
 ```{r}
 # Confusion matrix for ordinal model with interactions
 confusionMatrix(predict(ord_mod_interactions), dataset_clean$Q29, mode="everything")

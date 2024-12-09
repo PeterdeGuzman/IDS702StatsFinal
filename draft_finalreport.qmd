@@ -19,6 +19,20 @@ library(tidyverse)
 library(pROC)
 library(vcd)
 library(car)
+library(MASS) # package for model
+library(caret) # package for confusion matrix
+library(janitor)
+library(brant)
+
+```
+
+```{r echo = FALSE, results = FALSE}
+file_path <- "//Users/pdeguz01/Documents/git/Data/2020 CMPS/DS0001/39096-0001-Data.rda"
+
+load(file_path)          # Load the RDA file
+ls()                     # List objects loaded into the environment
+dataset <- da39096.0001  # Access the dataset
+
 ```
 
 ```{r echo = FALSE, results = FALSE}
@@ -107,7 +121,7 @@ dataset_new[required_cols] <- lapply(dataset_new[required_cols], as.factor)
 str(dataset_new[required_cols])
 ```
 
-```{r}
+```{r, echo=FALSE, results=FALSE}
 # Cleaning and recoding dataset_new
 dataset_new <- dataset_new |> 
   mutate(
@@ -282,8 +296,6 @@ colnames(dataset_clean) <- c(
 colnames(dataset_clean)
 ```
 
-# Model Building
-
 ```{r echo=FALSE, results=FALSE}
 # Regression model
 model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ Gender +
@@ -310,7 +322,6 @@ model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ Gender +
 vif(model)
 ```
 
-## Model 2: stepwise regression
 ```{r echo=FALSE, results=FALSE}
 # Perform stepwise selection
 model_stepwise <- step(model, 
@@ -322,7 +333,6 @@ model_stepwise <- step(model,
 # print(model_stepwise)
 vif(model_stepwise)
 ```
-
 
 ```{r echo=FALSE, results=FALSE}
 
@@ -347,9 +357,6 @@ results_model_stepwise <- data.frame(
 results_model_stepwise
 ```
 
-
-
-## Model Diagnostics
 ```{r echo=FALSE, results=FALSE}
 # Set seed for reproducibility
 set.seed(123)
@@ -407,21 +414,232 @@ print(conf_matrix)
 
 ```{r echo=FALSE, results=FALSE}
 # Calculate the ROC curve
-roc_curve <- roc(test_data$ImportanceOfStoppingDiscriminationAgainstMinorities, 
-                 predicted_probs_stepwise, 
-                 levels = c("Not important", "Important"))
-
-# Print the AUC
-auc_value <- auc(roc_curve)
-cat("AUC:", auc_value, "\n")
-
-# Plot the ROC curve
-plot(roc_curve, col = "blue", main = "ROC Curve")
-abline(a = 0, b = 1, col = "red", lty = 2)  # Add diagonal line for random guess
+# roc_curve <- roc(test_data$ImportanceOfStoppingDiscriminationAgainstMinorities, 
+#                  predicted_probs_stepwise, 
+#                  levels = c("Not important", "Important"))
+# 
+# # Print the AUC
+# auc_value <- auc(roc_curve)
+# cat("AUC:", auc_value, "\n")
+# 
+# # Plot the ROC curve
+# plot(roc_curve, col = "blue", main = "ROC Curve")
+# abline(a = 0, b = 1, col = "red", lty = 2)  # Add diagonal line for random guess
 
 # Save the ROC plot
 #ggsave("roc_curve_plot.png", width = 8, height = 6)
 
+```
+
+```{r, echo=FALSE, results=FALSE}
+# data load and cleaning for ordinal regression model
+required_cols_ord <- c("Q29", # Outcome Variable; interest in politics
+                   "Q271", # Predictor Variable; importance of race to identity
+                   "S2_RACE_PRIME", # Race
+                   "S3", # Orientation
+                   "S3B", # Gender
+                   "S5_AGE", # Age Category
+                   "S13", # Educational Attainment
+                   "S14", # Community Type
+                   "S7", # Nativity
+                   "Q21", # Party ID
+                   "S2_M", # Multiracial
+                   
+                   # Religion-related variables
+                   "Q58R1",            # Catholic
+                   "Q58R2",            # Protestant
+                   "Q58R3",            # Other Christian
+                   "Q58R4",            # Jewish
+                   "Q58R5",            # Muslim
+                   "Q58R6",            # Hindu
+                   "Q58R7",            # Buddhist
+                   "Q58R8",            # Mormon/LDS
+                   "Q58R9",            # Folk Religion
+                   "Q58R10",           # Daoist
+                   "Q58R11",           # Shamanism
+                   "Q58R12",           # Ancestral Religion
+                   "Q58R13",           # Spiritual but not religious
+                   "Q58R14",           # Atheist
+                   "Q58R15",            # Agnostic
+                   
+                   # Variables capturing experiences with racism
+                   "Q627", # Treated unfairly or discriminated against ,
+                   "Q628", # Location of discrimination
+                   "Q629R1" # Unfair treatment due to racial background/ethnicity
+                   )
+                 
+                   
+                   
+# Create new df
+data_filtered <- dataset[, required_cols_ord]
+
+# Convert the required columns to factors
+data_filtered[required_cols] <- lapply(data_filtered[required_cols_ord], as.factor)
+
+# Convert individual religion columns to numeric
+for (i in 1:15) {
+  col_name <- paste0("Q58R", i, "_numeric")
+  data_filtered[[col_name]] <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", data_filtered[[paste0("Q58R", i)]]))
+}
+
+# Create a new Religion variable
+data_filtered$Religion <- "None"
+data_filtered$Religion[data_filtered$Q58R1_numeric == 1] <- "Catholic"
+data_filtered$Religion[data_filtered$Q58R2_numeric == 1] <- "Protestant"
+data_filtered$Religion[data_filtered$Q58R3_numeric == 1] <- "Other Christian"
+data_filtered$Religion[data_filtered$Q58R4_numeric == 1] <- "Jewish"
+data_filtered$Religion[data_filtered$Q58R5_numeric == 1] <- "Muslim"
+data_filtered$Religion[data_filtered$Q58R6_numeric == 1] <- "Hindu"
+data_filtered$Religion[data_filtered$Q58R7_numeric == 1] <- "Buddhist"
+data_filtered$Religion[data_filtered$Q58R8_numeric == 1] <- "Mormon/LDS"
+data_filtered$Religion[data_filtered$Q58R9_numeric == 1] <- "Folk Religion"
+data_filtered$Religion[data_filtered$Q58R10_numeric == 1] <- "Daoist"
+data_filtered$Religion[data_filtered$Q58R11_numeric == 1] <- "Shamanism"
+data_filtered$Religion[data_filtered$Q58R12_numeric == 1] <- "Ancestral Religion"
+data_filtered$Religion[data_filtered$Q58R13_numeric == 1] <- "Spiritual but not religious"
+data_filtered$Religion[data_filtered$Q58R14_numeric == 1] <- "Atheist"
+data_filtered$Religion[data_filtered$Q58R15_numeric == 1] <- "Agnostic"
+
+# Convert Religion to a factor
+data_filtered$Religion <- factor(data_filtered$Religion,
+                               levels = c("Catholic", "Protestant", "Other Christian", "Jewish", "Muslim",
+                                          "Hindu", "Buddhist", "Mormon/LDS", "Folk Religion",
+                                          "Daoist", "Shamanism", "Ancestral Religion",
+                                          "Spiritual but not religious", "Atheist", "Agnostic", "None"))
+
+# Remove redundant religion columns (Q58R1 to Q58R15 and their numeric versions)
+redundant_cols <- c(
+  "Q58R1", "Q58R2", "Q58R3", "Q58R4", "Q58R5", "Q58R6", "Q58R7", "Q58R8", 
+  "Q58R9", "Q58R10", "Q58R11", "Q58R12", "Q58R13", "Q58R14", "Q58R15",
+  "Q58R1_numeric", "Q58R2_numeric", "Q58R3_numeric", "Q58R4_numeric", 
+  "Q58R5_numeric", "Q58R6_numeric", "Q58R7_numeric", "Q58R8_numeric", 
+  "Q58R9_numeric", "Q58R10_numeric", "Q58R11_numeric", "Q58R12_numeric", 
+  "Q58R13_numeric", "Q58R14_numeric", "Q58R15_numeric"
+)
+
+# Remove redundant columns from the dataset
+dataset_clean_ord <- data_filtered[, !(names(data_filtered) %in% redundant_cols)]
+
+dataset_clean_ord <- dataset_clean_ord %>% mutate(educ = case_when(S13 == "(1) Grades 1-8" ~ "No college experience",
+                                                           S13 == "(2) Some High School, but did not graduate" ~ "No college experience",
+                                                           S13 == "(3) High School graduate or GED" ~ "No college experience",
+                                                           S13 == "(4) Some college" ~ "Some college experience",
+                                                           S13 == "(5) Associates, 2-year degree" ~ "College graduate",
+                                                           S13 == "(6) Bachelors, 4-year degree" ~ "College graduate",
+                                                           S13 == "(7) Post-graduate degree" ~ "College graduate"),
+                                          sex_orientation = case_when(S3 == "(01) Straight, that is, not gay or lesbian" ~ "Straight",
+                                                                     S3 == "(02) Gay or lesbian" ~ "Queer",
+                                                                     S3 == "(03) Bisexual" ~ "Queer",
+                                                                     S3 == "(04) Something else (Specify)" ~ "Queer",
+                                                                     S3 == "(88) Refused" ~ "Refused/Don't Know",
+                                                                     S3 == "(99) I don" ~ "Refused/Don't Know"),
+                                          rural = case_when(S14 == "(1) Large urban area" ~ "Urban/suburban",
+                                                            S14 == "(2) Large suburb near large city" ~ "Urban/suburban",
+                                                            S14 == "(3) Small suburb near small town or city" ~ "Urban/suburban",
+                                                            S14 == "(4) Small town or small city" ~ "Urban/suburban",
+                                                            S14 == "(5) Rural area" ~ "Rural"),
+                                          white = case_when(S2_RACE_PRIME == "(1) White" ~ "White", 
+                                                            S2_RACE_PRIME == "(2) Hispanic or Latino" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(3) Black or African American" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(4) Asian American" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(5) American Indian/Native American" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(7) Native Hawaiian" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "Non-White"),
+                                          race_recoded = case_when(S2_RACE_PRIME == "(1) White" ~ "White",
+                                                                   S2_RACE_PRIME == "(2) Hispanic or Latino" ~ "Latino",
+                                                                   S2_RACE_PRIME == "(3) Black or African American" ~ "Black",
+                                                                   S2_RACE_PRIME == "(4) Asian American" ~ "Asian American",
+                                                                   S2_RACE_PRIME == "(5) American Indian/Native American" ~ "AIAN",
+                                                                   S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Arab/MENA",
+                                                                   S2_RACE_PRIME == "(7) Native Hawaiian" ~ "NHPI",
+                                                                   S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "NHPI"),
+                                          age_recoded = case_when(S5_AGE == "(1) 16-17" ~ "16-17",
+                                                                  S5_AGE == "(2) 18-29" ~ "18-29",
+                                                                  S5_AGE == "(3) 30-39" ~ "30-39",
+                                                                  S5_AGE == "(4) 40-49" ~ "40-49",
+                                                                  S5_AGE == "(5) 50-59" ~ "50-59",
+                                                                  S5_AGE == "(6) 60-69" ~ "60-69",
+                                                                  S5_AGE == "(7) 70 +" ~ "70+"))
+
+dataset_clean_ord <- dataset_clean_ord %>% mutate(race_recoded = factor(dataset_clean_ord$race_recoded, levels = c("White", "Black", "Asian American", "Latino", "AIAN", "NHPI", "Arab/MENA")),
+                                         age_recoded = factor(dataset_clean_ord$age_recoded, levels = c("18-29", "30-39", "40-49", "50-59", "60-69", "70+")),
+                                         educ = factor(dataset_clean_ord$educ, levels = c("No college experience", "Some college experience", "College graduate")),
+                                         white = factor(dataset_clean_ord$white, levels = c("White", "Non-White")),
+                                         rural = factor(dataset_clean_ord$rural, levels= c("Rural", "Urban/suburban")),
+                                         sex_orientation = factor(dataset_clean_ord$sex_orientation, levels = c("Straight", "Queer", "Refused/Don't Know")))
+
+
+```
+
+```{r, echo=FALSE, results=FALSE}
+# Exploratory data analysis
+# # Create a summary table for all categorical variables
+variables <- c("Q29", "Q271", "S2_RACE_PRIME", "S3", "S3B", "S5_AGE", "S13", "S14", "S7", "Q21", "S2_M", "Q627", "Q628", "Q629R1", "Religion", "educ", "sex_orientation", "rural", "white", "race_recoded", "age_recoded")
+
+
+# # Chi-square tests for each variable
+# chi_square_results <- lapply(variables, function(var) {
+#   chisq.test(table(dataset_clean_ord[[var]], dataset_clean_ord$Q29))
+# })
+# 
+# # Print chi-square results
+# names(chi_square_results) <- variables
+# print(chi_square_results)
+# 
+# tabyl(dataset_clean_ord$Q29)
+# tabyl(dataset_clean_ord$Q271)
+
+```
+
+```{r, echo=FALSE, results=FALSE}
+# ordinal regression model and assessment
+# loading cleaned data
+load("/Users/pdeguz01/Documents/git/Data/2020 CMPS/Output/2020cmps_clean.RData")
+dataset_clean_ord <- dataset_clean
+
+dataset_clean_ord$Q271_reordered <- factor(dataset_clean_ord$Q271,
+                            levels = c("(5) Not at all important",
+                                     "(4) Slightly important",
+                                     "(3) Moderately important",
+                                     "(2) Very important",
+                                     "(1) Extremely important"))
+
+ord_mod_interactions <- polr(Q29 ~ Q271_reordered * S3B +
+                               race_recoded +
+                  age_recoded +
+            educ +  # Educational Attainment
+            Q21, # Party affiliation
+          data = dataset_clean_ord, Hess=TRUE)
+
+
+
+summary(ord_mod_interactions)
+# 
+# 
+# pvals_interact <- pnorm(-abs(summary(ord_mod_interactions)$coef[,"t value"]))*2
+# ctable_interact <- cbind(summary(ord_mod_interactions)$coef,pvals)
+# 
+# ctable_interact
+# 
+# (exp_coefs_interact <- exp(cbind(OR=coef(ord_mod_interactions),confint(ord_mod_interactions))))
+# 
+# head(ord_mod_interactions$fitted.values)
+# head(predict(ord_mod_interactions))
+# 
+# confusionMatrix(predict(ord_mod_interactions), dataset_clean_ord$Q29, mode="everything")
+# 
+# # brant test
+# brant(ord_mod_interactions)
+# 
+# # generating predictions
+# new_dataset <- data.frame(race_recoded=c("White", "Black", "Asian American", "Latino", "AIAN", "NHPI", "Arab/MENA"),
+#                           Q271_reordered=c("(5) Not at all important", "(4) Slightly important", "(3) Moderately important", "(2) Very important", "(1) Extremely important", "(4) Slightly important", "(5) Not at all important"),
+#                           age_recoded = c("18-29", "30-39", "40-49", "50-59", "60-69", "70+", "18-29"),
+#                           S3B = c("(1) Man", "(2) Woman","(3) Non-binary","(4) Something else (Specify)", "(1) Man", "(2) Woman", "(1) Man"),
+#                           educ = c("No college experience", "Some college experience", "College graduate", "No college experience", "Some college experience", "College graduate", "College graduate"),
+#                           Q21 = c("(1) Republican",  "(2) Democrat","(3) Independent", "(4) Other party", "(1) Republican",  "(2) Democrat",  "(3) Independent"))
+# predict(ord_mod_interactions, new_dataset, type="probs")
 ```
 
 # Abstract
@@ -486,7 +704,56 @@ The model also included the predictor variable Q271, a categorical variable that
 
 The model also included multiple predictor variables that control for the impact of other aspects of a respondent’s identity, socioeconomic status, and political preferences These included demographic variables such as the primary race reported by a respondent, their age, and gender, as well as a respondent’s reported level of educational attainment and political party affiliation. Finally, the model included an interaction term between gender and Q271 (the importance a respondent placed in belonging to their racial group) to investigate whether there are combined effects of gender and racial belonging. 
 
-(Odds Ratio Plot)
+```{r, echo=FALSE, results=FALSE}
+# odds_ratio_plot <- function(model) {
+#   # Get odds ratios and CIs
+#   or_data <- exp(cbind(OR=coef(model),confint(model)))
+#   
+#   # Calculate p-values
+#   p_values <- pnorm(-abs(summary(model)$coefficients[,"t value"]))*2
+#   
+#   # Keep only significant variables
+#   sig_indices <- p_values[names(coef(model))] < 0.05
+#   or_data_sig <- or_data[sig_indices, ]
+#   
+#   ggplot() +
+#     # Add vertical line at OR = 1
+#     geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 0.7) +
+#     # Add points and error bars
+#     geom_point(aes(x = or_data_sig[,1], 
+#                    y = reorder(rownames(or_data_sig), or_data_sig[,1])), 
+#               size = 4, color = "blue") +
+#     geom_errorbarh(aes(xmin = or_data_sig[,2], 
+#                        xmax = or_data_sig[,3],
+#                        y = reorder(rownames(or_data_sig), or_data_sig[,1])),
+#                    height = 0.3, color = "black") +
+#     # Customize theme
+#     theme_minimal() +
+#     theme(
+#       axis.text.y = element_text(size = 6, color = "black"),
+#       axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+#       axis.title.x = element_text(size = 12, face = "bold"),
+#       axis.title.y = element_text(size = 12, face = "bold"),
+#       plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+#       plot.margin = margin(1, 1, 1, 1, "cm"),
+#       legend.text = element_text(size = 8),
+#       legend.title = element_text(size = 9)
+#     ) +
+#     # Add labels
+#     labs(
+#       title = "Significant Variables with Confidence Intervals (Odds Ratio)",
+#       x = "Odds Ratio",
+#       y = "Variables"
+#     )
+# }
+# 
+# # Generate the plot
+# odds_ratio_plot(ord_mod_interactions)
+# ggsave("RQ1_oddsratioplot.png", width = 20, height = 10)
+
+```
+
+![](RQ1_oddsratio.png)
 
 Controlling for age, race, gender identity, educational attainment, and party affiliation, respondents who considered belonging in their racial group to be slightly or moderately important to their identity were marginally more likely to report a higher level of interest in politics than those that considered belonging in their racial group not at all important to their identity, but these effects were not statistically significant. Surprisingly, respondents who considered belonging in their racial group to be very or extremely important to their identity were less likely to report higher levels of interest in politics than the reference category (those who did not place a high importance on belonging to their racial group), holding the other demographic variables constant. These results were statistically significant. 
 
@@ -506,7 +773,7 @@ We also produced a confusion matrix for a multinomial model with the same predic
 
 For the second research question, the variable outcome variable Q1R5 (i.e. importance placed on stopping discrimination against racial/ethnic minorities) was modeled using binomial logistic regression, an appropriate method for binary outcomes. Despite the skewed distribution of the dependent variable—74.25% of respondents considered it "Not Important" as shown in fig. 1—logistic regression is robust to such imbalances.
 
-```{r echo=FALSE}
+```{r echo=FALSE, results=FALSE}
 # Calculate proportions
 proportions <- prop.table(table(dataset$Q1R5))
 proportions
@@ -523,13 +790,12 @@ pie(proportions,
     col = c("lightblue", "salmon"))
 
 
-ggsave("Proportion_Outcome_variable_RQ2.png", width = 20, height = 10)
+#ggsave("Proportion_Outcome_variable_RQ2.png", width = 20, height = 10)
 ```
-
 
 The model incorporated predictors to examine factors influencing the importance respondents placed on anti-discrimination policies. These included personal experiences with racism, captured by Q627 (unfair treatment or discrimination) and Q633 (impact of discrimination on life satisfaction), alongside demographic variables such as S2_RACE_PRIME (primary race), S3 (sexual orientation), S3B (gender identity), S5_AGE (age), S13 (education), and S14 (community type: rural, suburban, urban). Variables Q629R1–Q629R7 were excluded due to substantial missing data (\>52%). Nonetheless, because it overlapped significantly with Q627 (see fig. 2), the overall essence of experiences with racism was retained in a more general and complete form.
 
-```{r echo = FALSE}
+```{r echo = FALSE, results=FALSE}
 # Filter for significant variables (p-value < 0.05)
 significant_data <- results_model_stepwise[results_model_stepwise$PValue < 0.05, ]
 
@@ -560,9 +826,10 @@ ggplot(significant_data, aes(x = OddsRatio, y = reorder(Variable, OddsRatio))) +
   )
 
 # Save the plot with larger dimensions
-ggsave("Significant_Variables_Plot_Enhanced.png", width = 20, height = 10)
+#ggsave("Significant_Variables_Plot_Enhanced.png", width = 20, height = 10)
 ```
 
+![](Significant_Variables_Plot_Enhanced.png){width="20"}
 
 To investigate the combined effects of gender and race and engage with intersectionality theory, an interaction term between Gender and Primary Race was initially included in the model. However, this introduced multicollinearity, as indicated by aliased coefficients and elevated Variance Inflation Factor (VIF) values, likely due to data sparsity and the underrepresentation of certain gender-race combinations, resulting in near-perfect linear dependencies. To resolve this, the interaction term was removed, and additional interactions were avoided to mitigate similar issues. Simplifying the model enhanced interpretability and reduced the risk of overfitting.
 

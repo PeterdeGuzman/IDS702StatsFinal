@@ -245,6 +245,54 @@ brant(ord_mod_interactions)
 
 # Producing odds ratio plot for ordinal model with interactions
 
+```{r}
+odds_ratio_plot <- function(model) {
+  # Get odds ratios and CIs
+  or_data <- exp(cbind(OR=coef(model),confint(model)))
+  
+  # Calculate p-values
+  p_values <- pnorm(-abs(summary(model)$coefficients[,"t value"]))*2
+  
+  # Keep only significant variables
+  sig_indices <- p_values[names(coef(model))] < 0.05
+  or_data_sig <- or_data[sig_indices, ]
+  
+  ggplot() +
+    # Add vertical line at OR = 1
+    geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 0.7) +
+    # Add points and error bars
+    geom_point(aes(x = or_data_sig[,1], 
+                   y = reorder(rownames(or_data_sig), or_data_sig[,1])), 
+              size = 4, color = "blue") +
+    geom_errorbarh(aes(xmin = or_data_sig[,2], 
+                       xmax = or_data_sig[,3],
+                       y = reorder(rownames(or_data_sig), or_data_sig[,1])),
+                   height = 0.3, color = "black") +
+    # Customize theme
+    theme_minimal() +
+    theme(
+      axis.text.y = element_text(size = 6, color = "black"),
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+      axis.title.x = element_text(size = 12, face = "bold"),
+      axis.title.y = element_text(size = 12, face = "bold"),
+      plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+      plot.margin = margin(1, 1, 1, 1, "cm"),
+      legend.text = element_text(size = 8),
+      legend.title = element_text(size = 9)
+    ) +
+    # Add labels
+    labs(
+      title = "Significant Variables with Confidence Intervals (Odds Ratio)",
+      x = "Odds Ratio",
+      y = "Variables"
+    )
+}
+
+# Generate the plot
+odds_ratio_plot(ord_mod)
+
+```
+
 # Fitting MLR Model
 
 ```{r}

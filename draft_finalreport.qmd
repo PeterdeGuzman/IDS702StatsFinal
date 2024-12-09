@@ -6,6 +6,424 @@ date: 2024-12-08
 editor: visual
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,   # Suppress messages
+  warning = FALSE    # Suppress warnings
+)
+```
+
+```{r echo = FALSE}
+# Libraries
+library(tidyverse)  
+library(pROC)
+library(vcd)
+library(car)
+```
+
+```{r echo = FALSE, results = FALSE}
+# identifying requireed columns
+required_cols <- c(
+  # Outcome Variable: Stopping discrimination against racial/ethnic minorities
+  "Q1R5", 
+
+  # Demographic Variables
+  "S2_RACE_PRIME",   # Primary Race
+  "S3",              # SexualOrientation
+  "S3B",             # Gender
+  "S5_AGE",          # Age categories
+  "S13",             # Highest level of education
+  "S14",             # Community lived in
+
+  # Variables capturing experiences with racism
+  "Q629R1",          # Unfair treatment due to racial background/ethnicity
+  "Q629R2",          # Unfair treatment due to skin color
+  "Q629R3",          # Unfair treatment due to gender
+  "Q629R4",          # Unfair treatment due to sexuality/orientation
+  "Q629R5",          # Unfair treatment due to immigration status
+  "Q629R6",          # Unfair treatment due to religion
+  "Q629R7",          # Unfair treatment due to accent
+
+  "Q627",            # Treated unfairly or discriminated against because of your race, ethnicity, gender, sexuality, being an immigrant, religious heritage or having an accent?
+  "Q633",            # Discrimination impact on life satisfaction
+
+  # Religion-related variables
+  "Q58R1", "Q58R2", "Q58R3", "Q58R4", "Q58R5", "Q58R6", "Q58R7", 
+  "Q58R8", "Q58R9", "Q58R10", "Q58R11", "Q58R12", "Q58R13", 
+  "Q58R14", "Q58R15", # Various religious affiliations
+
+  # Perceptions of discrimination
+  "Q619_Q626R1",     # Perceptions of discrimination against Whites
+  "Q619_Q626R2",     # Perceptions of discrimination against Blacks
+  "Q619_Q626R3",     # Perceptions of discrimination against Asian Americans
+  "Q619_Q626R4",     # Perceptions of discrimination against Native Americans
+  "Q619_Q626R5",     # Perceptions of discrimination against Immigrants
+  "Q619_Q626R6",     # Perceptions of discrimination against Latinos
+  "Q619_Q626R7",     # Perceptions of discrimination against GaysAndLesbians
+  "Q619_Q626R8"      # Perceptions of discrimination against Muslims
+)
+
+```
+
+```{r echo=FALSE, results=FALSE}
+# Create a new dataframe with selected variables
+dataset_new <- dataset[, required_cols]
+
+# Recode the outcome variable 'Q1R5' for readability
+dataset_new$Q1R5 <- factor(
+  ifelse(
+    dataset_new$Q1R5 == "(0) NO TO: Stopping discrimination against racial/ethnic minorities", 
+    "Not important",
+    "Important"  # Remaining cases are "Important"
+  ),
+  levels = c("Not important", "Important") # Define factor levels
+)
+
+# Define the columns for perceptions of discrimination
+perception_cols <- c(
+  "Q619_Q626R1",  # Perceptions of discrimination against Whites
+  "Q619_Q626R2",  # Perceptions of discrimination against Blacks
+  "Q619_Q626R3",  # Perceptions of discrimination against Asian Americans
+  "Q619_Q626R4",  # Perceptions of discrimination against Native Americans
+  "Q619_Q626R5",  # Perceptions of discrimination against Immigrants
+  "Q619_Q626R6",  # Perceptions of discrimination against Latinos
+  "Q619_Q626R7",  # Perceptions of discrimination against GaysAndLesbians
+  "Q619_Q626R8",  # Perceptions of discrimination against Muslims
+  "Q633"          # Discrimination impact on life satisfaction
+)
+
+# Recode 'Don' as 'Don't know' and ensure columns remain factors
+dataset_new[perception_cols] <- lapply(dataset_new[perception_cols], function(x) {
+  x <- as.character(x)  # Temporarily convert to character for recoding
+  x <- ifelse(x == "(5) Don", "(5) Don't know", x)  # Recode 'Don' to 'Don't know'
+  factor(x)  # Convert back to factor
+})
+
+# Define required columns to convert to factors (if not already defined)
+# Assuming `required_cols` is previously defined; otherwise, specify explicitly
+dataset_new[required_cols] <- lapply(dataset_new[required_cols], as.factor)
+
+# Verify the structure of the dataset
+str(dataset_new[required_cols])
+```
+
+```{r}
+# Cleaning and recoding dataset_new
+dataset_new <- dataset_new |> 
+  mutate(
+    # Education recoding
+    educ = case_when(
+      S13 == "(1) Grades 1-8" ~ "No college experience",
+      S13 == "(2) Some High School, but did not graduate" ~ "No college experience",
+      S13 == "(3) High School graduate or GED" ~ "No college experience",
+      S13 == "(4) Some college" ~ "Some college experience",
+      S13 == "(5) Associates, 2-year degree" ~ "College graduate",
+      S13 == "(6) Bachelors, 4-year degree" ~ "College graduate",
+      S13 == "(7) Post-graduate degree" ~ "College graduate"
+    ),
+    # Sexual orientation recoding
+    sex_orientation = case_when(
+      S3 == "(01) Straight, that is, not gay or lesbian" ~ "Straight",
+      S3 == "(02) Gay or lesbian" ~ "Queer",
+      S3 == "(03) Bisexual" ~ "Queer",
+      S3 == "(04) Something else (Specify)" ~ "Queer",
+      S3 == "(88) Refused" ~ "Refused/Don't Know",
+      S3 == "(99) I don" ~ "Refused/Don't Know"
+    ),
+    # Urban vs rural recoding
+    rural = case_when(
+      S14 == "(1) Large urban area" ~ "Urban/suburban",
+      S14 == "(2) Large suburb near large city" ~ "Urban/suburban",
+      S14 == "(3) Small suburb near small town or city" ~ "Urban/suburban",
+      S14 == "(4) Small town or small city" ~ "Urban/suburban",
+      S14 == "(5) Rural area" ~ "Rural"
+    ),
+    # Race recoding
+    race_recoded = case_when(
+      S2_RACE_PRIME == "(1) White" ~ "White",
+      S2_RACE_PRIME == "(2) Hispanic or Latino" ~ "Latino",
+      S2_RACE_PRIME == "(3) Black or African American" ~ "Black",
+      S2_RACE_PRIME == "(4) Asian American" ~ "Asian American",
+      S2_RACE_PRIME == "(5) American Indian/Native American" ~ "AIAN",
+      S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Arab/MENA",
+      S2_RACE_PRIME == "(7) Native Hawaiian" ~ "NHPI",
+      S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "NHPI"
+    ),
+    # Age recoding
+    age_recoded = case_when(
+      S5_AGE == "(1) 16-17" ~ "16-17",
+      S5_AGE == "(2) 18-29" ~ "18-29",
+      S5_AGE == "(3) 30-39" ~ "30-39",
+      S5_AGE == "(4) 40-49" ~ "40-49",
+      S5_AGE == "(5) 50-59" ~ "50-59",
+      S5_AGE == "(6) 60-69" ~ "60-69",
+      S5_AGE == "(7) 70 +" ~ "70+"
+    )
+  ) %>%
+  mutate(
+    # Converting variables to factors
+    race_recoded = factor(race_recoded, levels = c("White", "Black", "Asian American", "Latino", "AIAN", "NHPI", "Arab/MENA")),
+    age_recoded = factor(age_recoded, levels = c("18-29", "30-39", "40-49", "50-59", "60-69", "70+")),
+    educ = factor(educ, levels = c("No college experience", "Some college experience", "College graduate")),
+    rural = factor(rural, levels = c("Rural", "Urban/suburban")),
+    sex_orientation = factor(sex_orientation, levels = c("Straight", "Queer", "Refused/Don't Know"))
+  )
+
+# Convert individual religion columns to numeric
+for (i in 1:15) {
+  col_name <- paste0("Q58R", i, "_numeric")
+  dataset_new[[col_name]] <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", dataset_new[[paste0("Q58R", i)]]))
+}
+
+# Create a new Religion variable
+dataset_new$Religion <- "None"
+
+# Assign religion based on the numeric values of each Q58R column
+religion_mapping <- c(
+  "Q58R1_numeric" = "Catholic", 
+  "Q58R2_numeric" = "Protestant", 
+  "Q58R3_numeric" = "Other Christian",
+  "Q58R4_numeric" = "Jewish", 
+  "Q58R5_numeric" = "Muslim", 
+  "Q58R6_numeric" = "Hindu", 
+  "Q58R7_numeric" = "Buddhist", 
+  "Q58R8_numeric" = "Mormon/LDS", 
+  "Q58R9_numeric" = "Folk Religion", 
+  "Q58R10_numeric" = "Daoist", 
+  "Q58R11_numeric" = "Shamanism", 
+  "Q58R12_numeric" = "Ancestral Religion", 
+  "Q58R13_numeric" = "Spiritual but not religious", 
+  "Q58R14_numeric" = "Atheist", 
+  "Q58R15_numeric" = "Agnostic"
+)
+
+# Loop through the mapping to assign religion values
+for (col in names(religion_mapping)) {
+  dataset_new$Religion[dataset_new[[col]] == 1] <- religion_mapping[[col]]
+}
+
+# Handle multiple religious affiliations
+dataset_new$Religion[rowSums(dataset_new[, grep("_numeric", names(dataset_new))] == 1) > 1] <- "Multiple Religions"
+
+# Convert Religion to a factor with specific levels
+dataset_new$Religion <- factor(dataset_new$Religion,
+                               levels = c("Catholic", "Protestant", "Other Christian", "Jewish", "Muslim",
+                                          "Hindu", "Buddhist", "Mormon/LDS", "Folk Religion",
+                                          "Daoist", "Shamanism", "Ancestral Religion",
+                                          "Spiritual but not religious", "Atheist", "Agnostic", 
+                                          "Multiple Religions", "None"))
+
+# Remove redundant religion columns
+redundant_cols <- c(
+  paste0("Q58R", 1:15), paste0("Q58R", 1:15, "_numeric")
+)
+
+# Remove redundant columns from the dataset
+dataset_clean <- dataset_new[, !(names(dataset_new) %in% redundant_cols)]
+
+```
+
+```{r echo=FALSE, results=FALSE}
+# Check the number of missing values for each variable
+missing_summary <- sapply(dataset_clean, function(x) sum(is.na(x)))
+
+# Create a data frame to display the missing values clearly
+missing_df <- data.frame(Variable = names(missing_summary), Missing_Count = missing_summary)
+print(missing_df)
+
+# Extract the variables Q629R1 to Q629R7
+racism_vars <- dataset_clean[, grep("^Q629R[1-7]$", names(dataset_clean))]
+
+# Calculate the proportion of missing values for each variable
+missing_proportions <- colSums(is.na(racism_vars)) / nrow(racism_vars)
+
+# Convert to a data frame
+missing_summary <- data.frame(Variable = names(missing_proportions),
+                              Missing_Proportion = round(missing_proportions, 4))
+
+print(missing_summary)
+```
+
+```{r echo=FALSE, results=FALSE}
+# Remove all redundant columns
+redundant_columns <- c("Q629R1", "Q629R2", "Q629R3", "Q629R4", 
+                       "Q629R5", "Q629R6", "Q629R7",
+                       "S2_RACE_PRIME", "S13", "S3", "S5_AGE","S14")
+
+dataset_clean <- dataset_clean[, !(names(dataset_clean) %in% redundant_columns)]
+
+head(dataset_clean)
+```
+
+```{r echo=FALSE, results=FALSE}
+# Rename remaining columns in dataset_clean
+colnames(dataset_clean) <- c(
+  "ImportanceOfStoppingDiscriminationAgainstMinorities",  # Q1R5
+  "Gender",                                               # S3B
+  "TreatedUnfairlyOrDiscriminatedAgainst",                # Q627
+  "DiscriminationImpactOnLifeSatisfaction",              # Q633
+  "PerceptionsOfDiscriminationAgainstWhites",            # Q619_Q626R1
+  "PerceptionsOfDiscriminationAgainstBlacks",            # Q619_Q626R2
+  "PerceptionsOfDiscriminationAgainstAsianAmericans",    # Q619_Q626R3
+  "PerceptionsOfDiscriminationAgainstNativeAmericans",   # Q619_Q626R4
+  "PerceptionsOfDiscriminationAgainstImmigrants",        # Q619_Q626R5
+  "PerceptionsOfDiscriminationAgainstLatinos",           # Q619_Q626R6
+  "PerceptionsOfDiscriminationAgainstGaysAndLesbians",   # Q619_Q626R7
+  "PerceptionsOfDiscriminationAgainstMuslims",           # Q619_Q626R8
+  "Education",                                           # educ
+  "SexOrientation",                                      # sex_orientation
+  "Rural",                                               # rural
+  "Race",                                                # race_recoded
+  "Age",                                                 # age_recoded
+  "Religion"                                             # Religion
+)
+
+# Verify the renamed columns
+colnames(dataset_clean)
+```
+
+# Model Building
+
+```{r echo=FALSE, results=FALSE}
+# Regression model
+model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ Gender +
+               TreatedUnfairlyOrDiscriminatedAgainst + 
+               DiscriminationImpactOnLifeSatisfaction +
+               PerceptionsOfDiscriminationAgainstWhites + 
+               PerceptionsOfDiscriminationAgainstBlacks +
+               PerceptionsOfDiscriminationAgainstAsianAmericans + 
+               PerceptionsOfDiscriminationAgainstNativeAmericans + 
+               PerceptionsOfDiscriminationAgainstImmigrants + 
+               PerceptionsOfDiscriminationAgainstLatinos + 
+               PerceptionsOfDiscriminationAgainstGaysAndLesbians + 
+               PerceptionsOfDiscriminationAgainstMuslims +
+               Education + 
+                 SexOrientation +
+                 Rural +
+                 Race +
+                 Age +
+               Religion, 
+             
+             data = dataset_clean, family = "binomial")
+
+# Check multicollinearity using VIF
+vif(model)
+```
+
+## Model 2: stepwise regression
+```{r echo=FALSE, results=FALSE}
+# Perform stepwise selection
+model_stepwise <- step(model, 
+                       direction = "both",
+                       trace = 0)
+```
+
+```{r echo=FALSE, results=FALSE}
+# print(model_stepwise)
+vif(model_stepwise)
+```
+
+
+```{r echo=FALSE, results=FALSE}
+
+# Extract odds ratios
+odds_ratios <- exp(coef(model_stepwise))
+
+# Get confidence intervals for coefficients
+conf_intervals <- exp(confint(model_stepwise))
+
+# Extract p-values
+p_values <- summary(model_stepwise)$coefficients[, 4]
+
+# Combine everything into a single data frame
+results_model_stepwise <- data.frame(
+  OddsRatio = odds_ratios,
+  LowerCI = conf_intervals[, 1],
+  UpperCI = conf_intervals[, 2],
+  PValue = p_values
+)
+
+# Display results
+results_model_stepwise
+```
+
+
+
+## Model Diagnostics
+```{r echo=FALSE, results=FALSE}
+# Set seed for reproducibility
+set.seed(123)
+
+# Split data into training (70%) and testing (30%)
+library(caret)
+train_index <- createDataPartition(dataset_clean$ImportanceOfStoppingDiscriminationAgainstMinorities, p = 0.7, list = FALSE)
+train_data <- dataset_clean[train_index, ]
+test_data <- dataset_clean[-train_index, ]
+
+# Train stepwise logistic regression model on training data
+
+# Fit the initial model (full model)
+full_model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ Gender +
+               TreatedUnfairlyOrDiscriminatedAgainst + 
+               DiscriminationImpactOnLifeSatisfaction +
+               PerceptionsOfDiscriminationAgainstWhites + 
+               PerceptionsOfDiscriminationAgainstBlacks +
+               PerceptionsOfDiscriminationAgainstAsianAmericans + 
+               PerceptionsOfDiscriminationAgainstNativeAmericans + 
+               PerceptionsOfDiscriminationAgainstImmigrants + 
+               PerceptionsOfDiscriminationAgainstLatinos + 
+               PerceptionsOfDiscriminationAgainstGaysAndLesbians + 
+               PerceptionsOfDiscriminationAgainstMuslims +
+               Education + 
+                 SexOrientation +
+                 Rural +
+                 Race +
+                 Age +
+               Religion, 
+                  data = train_data, family = "binomial")
+
+# Perform stepwise selection
+final_model <- step(full_model, 
+                       direction = "both",
+                       trace = 0)
+
+# Generate predictions on the test data
+predicted_probs <- predict(final_model, newdata = test_data, type = "response")
+
+# Convert probabilities to binary outcomes using a threshold (e.g., 0.5)
+predicted_classes <- ifelse(predicted_probs > 0.5, "Important", "Not important")
+
+# Convert predicted classes to factor and align levels with actual classes
+predicted_classes <- factor(predicted_classes, levels = c("Not important", "Important"))
+actual_classes <- factor(test_data$ImportanceOfStoppingDiscriminationAgainstMinorities, 
+                                  levels = c("Not important", "Important"))
+
+# Create confusion matrix
+conf_matrix <- confusionMatrix(predicted_classes, actual_classes)
+
+# Print the confusion matrix
+print(conf_matrix)
+```
+
+```{r echo=FALSE, results=FALSE}
+# Calculate the ROC curve
+roc_curve <- roc(test_data$ImportanceOfStoppingDiscriminationAgainstMinorities, 
+                 predicted_probs_stepwise, 
+                 levels = c("Not important", "Important"))
+
+# Print the AUC
+auc_value <- auc(roc_curve)
+cat("AUC:", auc_value, "\n")
+
+# Plot the ROC curve
+plot(roc_curve, col = "blue", main = "ROC Curve")
+abline(a = 0, b = 1, col = "red", lty = 2)  # Add diagonal line for random guess
+
+# Save the ROC plot
+#ggsave("roc_curve_plot.png", width = 8, height = 6)
+
+```
+
 # Abstract
 
 Following the Immigration and Nationality Act of 1965, which allowed for increased immigration into the United States, the United States has become increasingly racially and ethnically diverse. However, studies of political participation and public opinion have often failed to include large samples of racial and ethnic minority Americans, limiting researchers from drawing conclusions on the attitudes of these groups. Using survey data from the 2020 Collaborative Multi-Racial Post-Election Survey, which includes oversamples of racial and ethnic minority populations in the U.S., we investigate the impact of racial identity and racism on political participation and public opinion. First, we analyze whether valuing belonging in a racial group can influence a respondent’s interest in politics. Then, we analyze how personal experiences with racism may influence how respondents value policies aimed at addressing racial and ethnic discrimination. Our findings suggest that racial group belonging is not a predictor of political interest, while gender identity, racial identity, and party affiliation may predict higher levels of political interest. Additionally, gender identity, racial identity, and personal experiences with discrimination may predict increased levels of support for anti-discrimination policies.
@@ -56,6 +474,14 @@ We used a binomial logistic regression to model the outcome variable, Q1R5 (impo
 
 For the first research question, the outcome variable Q29 (interest in participating in politics) was modeled using ordinal logistic regression. Q29, an ordinal variable captured responses to the question: “Some people are very interested in politics while other people can’t stand politics, how about you? Are you…” with response options “Very interested in politics”, “Somewhat interested”, “Not that interested in politics”, and “Not at all interested in politics.” The overall sample reported high levels of interest in politics, with 43% of respondents reporting that they were somewhat interested and one in four (25%) saying they were very interested in politics.
 
+| Response to Q29                   | Count  | Share of Total Respondents |
+|-----------------------------------|--------|----------------------------|
+| Very interested in politics       | 4,306  | 25%                        |
+| Somewhat interested               | 7,612  | 43%                        |
+| Not that interested in politics   | 3,643  | 21%                        |
+| Not at all interested in politics | 1,984  | 11%                        |
+| Total                             | 17,545 | 100%                       |
+
 The model also included the predictor variable Q271, a categorical variable that captured responses to the question: “How important is being \[RACIAL GROUP\] to your identity?”, with response options “Extremely important”, “Very important”, “Moderately important”, “Slightly important”, and “Not at all important”. The respondent’s identified racial group was brought into the survey question based on their prior survey responses. Over half (56%) of respondents reported that being a member of their racial group was very or extremely important to their identity. Only 23% of respondents said that being a member of their racial group was slightly or not at all important to their identity.
 
 The model also included multiple predictor variables that control for the impact of other aspects of a respondent’s identity, socioeconomic status, and political preferences These included demographic variables such as the primary race reported by a respondent, their age, and gender, as well as a respondent’s reported level of educational attainment and political party affiliation. Finally, the model included an interaction term between gender and Q271 (the importance a respondent placed in belonging to their racial group) to investigate whether there are combined effects of gender and racial belonging. 
@@ -80,15 +506,67 @@ We also produced a confusion matrix for a multinomial model with the same predic
 
 For the second research question, the variable outcome variable Q1R5 (i.e. importance placed on stopping discrimination against racial/ethnic minorities) was modeled using binomial logistic regression, an appropriate method for binary outcomes. Despite the skewed distribution of the dependent variable—74.25% of respondents considered it "Not Important" as shown in fig. 1—logistic regression is robust to such imbalances.
 
-(INSERT PIE CHART)
+```{r echo=FALSE}
+# Calculate proportions
+proportions <- prop.table(table(dataset$Q1R5))
+proportions
+# Define custom labels
+custom_labels <- c("Not important", "Important")
 
-The model incorporated predictors to examine factors influencing the importance respondents placed on anti-discrimination policies. These included personal experiences with racism, captured by **Q627** (unfair treatment or discrimination) and **Q633** (impact of discrimination on life satisfaction), alongside demographic variables such as **S2_RACE_PRIME** (primary race), **S3** (sexual orientation), **S3B** (gender identity), **S5_AGE** (age), **S13** (education), and **S14** (community type: rural, suburban, urban). Variables **Q629R1–Q629R7** were excluded due to substantial missing data (\>52%). Nonetheless, because it overlapped significantly with **Q627 (see fig. 2)**, the overall essence of experiences with racism was retained in a more general and complete form.
+# Combine custom labels with percentages
+pie_labels <- paste(custom_labels, round(proportions * 100, 2), "%")
 
-(INSERT ODDS RATIO CHART)
+# Plot the pie chart with custom labels
+pie(proportions,
+    labels = pie_labels,
+    main = "Q1R5: Stopping discrimination against racial/ethnic minorities",
+    col = c("lightblue", "salmon"))
+
+
+ggsave("Proportion_Outcome_variable_RQ2.png", width = 20, height = 10)
+```
+
+
+The model incorporated predictors to examine factors influencing the importance respondents placed on anti-discrimination policies. These included personal experiences with racism, captured by Q627 (unfair treatment or discrimination) and Q633 (impact of discrimination on life satisfaction), alongside demographic variables such as S2_RACE_PRIME (primary race), S3 (sexual orientation), S3B (gender identity), S5_AGE (age), S13 (education), and S14 (community type: rural, suburban, urban). Variables Q629R1–Q629R7 were excluded due to substantial missing data (\>52%). Nonetheless, because it overlapped significantly with Q627 (see fig. 2), the overall essence of experiences with racism was retained in a more general and complete form.
+
+```{r echo = FALSE}
+# Filter for significant variables (p-value < 0.05)
+significant_data <- results_model_stepwise[results_model_stepwise$PValue < 0.05, ]
+
+# Add a column for variable names to use in the plot
+significant_data <- significant_data %>% 
+  mutate(Variable = rownames(significant_data))
+
+# Create the plot
+ggplot(significant_data, aes(x = OddsRatio, y = reorder(Variable, OddsRatio))) +
+  geom_point(size = 4, color = "blue") +  # Add points for odds ratios
+  geom_errorbarh(aes(xmin = LowerCI, xmax = UpperCI), height = 0.3, color = "black") +  # Add horizontal error bars
+  geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 0.7) +  # Add a vertical reference line at Odds Ratio = 1
+  labs(
+    title = "Significant Variables with Confidence Intervals (Odds Ratio)",
+    x = "Odds Ratio",
+    y = "Variables"
+  ) +
+  theme_minimal() +  # Use a minimal theme for better aesthetics
+  theme(
+    axis.text.y = element_text(size = 6, color = "black"),  # Improve y-axis text readability
+    axis.title.x = element_text(size = 12, face = "bold"),  # Highlight x-axis title
+    axis.title.y = element_text(size = 12, face = "bold"),  # Highlight y-axis title
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5),  # Center the title
+    plot.margin = margin(1, 1, 1, 1, "cm"),  # Adjust margins
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8),  # Reduce x-axis text size
+    legend.text = element_text(size = 8),  # Reduce legend text size
+    legend.title = element_text(size = 9)  # Reduce legend title size
+  )
+
+# Save the plot with larger dimensions
+ggsave("Significant_Variables_Plot_Enhanced.png", width = 20, height = 10)
+```
+
 
 To investigate the combined effects of gender and race and engage with intersectionality theory, an interaction term between Gender and Primary Race was initially included in the model. However, this introduced multicollinearity, as indicated by aliased coefficients and elevated Variance Inflation Factor (VIF) values, likely due to data sparsity and the underrepresentation of certain gender-race combinations, resulting in near-perfect linear dependencies. To resolve this, the interaction term was removed, and additional interactions were avoided to mitigate similar issues. Simplifying the model enhanced interpretability and reduced the risk of overfitting.
 
-To further address high VIF values observed in predictors such as **Perceptions of Discrimination Against Latinos** (GVIF = 12.45) and **Perceptions of Discrimination Against Immigrants** (GVIF = 11.53), forward and backward stepwise regression was employed. This approach optimized model fit using the Akaike Information Criterion (AIC) while minimizing multicollinearity. The iterative process ensured that only the most significant predictors were retained, reducing VIF values and improving the model's stability.
+To further address high VIF values observed in predictors such as Perceptions of Discrimination Against Latinos (GVIF = 12.45) and Perceptions of Discrimination Against Immigrants (GVIF = 11.53), forward and backward stepwise regression was employed. This approach optimized model fit using the Akaike Information Criterion (AIC) while minimizing multicollinearity. The iterative process ensured that only the most significant predictors were retained, reducing VIF values and improving the model's stability.
 
 Gender and race emerged as critical determinants in prioritizing anti-discrimination policies. Women were 1.25 times more likely than men to consider these policies important, while non-binary individuals exhibited 1.40 times higher odds, though this result was not statistically significant. Race had an even more pronounced impact; Black respondents had 3.55 times higher odds, Asian Americans had 2.12 times higher odds, Latinos had 1.78 times higher odds, Native Hawaiians/Pacific Islanders had 2.17 times higher odds, and Arab/MENA individuals had 2.67 times higher odds of prioritizing these policies compared to White respondents.
 
@@ -96,7 +574,7 @@ Personal experiences with racism further shaped support for these policies. Resp
 
 Perceptions of discrimination also played a significant role. Respondents perceiving lower levels of discrimination against Black individuals had 0.48–0.65 times lower odds of prioritizing anti-discrimination policies, whereas perceptions of minimal or no discrimination against Whites were associated with 1.47–2.01 times higher odds of supporting such policies. Sexual orientation also influenced prioritization, with queer respondents having 1.15 times higher odds of supporting anti-discrimination policies compared to non-queer respondents.
 
-The confusion matrix reveals that the model has high **sensitivity** (0.9488), thus accurately identifying respondents who consider policies "Not important." However, the low **specificity** (0.1683) indicates that it struggles to correctly classify those who view the policies as "Important." This is expected given the dataset's skew toward "Not important" (74.25%). The **AUC** of 0.7186 suggests moderate predictive ability, but the model's low specificity and imbalance in class distribution highlight areas for improvement.
+The confusion matrix reveals that the model has high sensitivity (0.9488), thus accurately identifying respondents who consider policies "Not important." However, the low specificity (0.1683) indicates that it struggles to correctly classify those who view the policies as "Important." This is expected given the dataset's skew toward "Not important" (74.25%). The AUC of 0.7186 suggests moderate predictive ability, but the model's low specificity and imbalance in class distribution highlight areas for improvement.
 
 # Conclusion
 
@@ -109,8 +587,6 @@ Despite the value of this survey’s oversamples of racial and ethnic minority c
 The effect of race on political interest appeared to be more pronounced for members of very small racial/ethnic minority groups in our analysis such as Asian Americans, Native Americans, Native Hawaiians and Pacific Islanders. Both models had low specificity, suggesting that they struggled to correctly identify cases where respondents had low levels of political interest or respondents who considered anti-discrimination policies to be important.
 
 These challenges and opportunities highlight the importance of disaggregated data and further research in partnership with small racial and ethnic minority communities within the United States. Future work on political participation and public opinion among racial and ethnic minorities could support researchers, policymakers, and advocates efforts to better understand and support these communities. 
-
-# Appendix
 
 # References
 

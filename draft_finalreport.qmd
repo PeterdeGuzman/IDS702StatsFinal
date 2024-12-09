@@ -1,0 +1,131 @@
+---
+title: "The Effects of Racial Identity and Discrimination on Political Participation and Political Attitudes"
+author: "Peter de Guzman, Jennifer Li, Nakiyah Dhariwala, Sizhe Chen"
+format: html
+date: 2024-12-08
+editor: visual
+---
+
+# Abstract
+
+Following the Immigration and Nationality Act of 1965, which allowed for increased immigration into the United States, the United States has become increasingly racially and ethnically diverse. However, studies of political participation and public opinion have often failed to include large samples of racial and ethnic minority Americans, limiting researchers from drawing conclusions on the attitudes of these groups. Using survey data from the 2020 Collaborative Multi-Racial Post-Election Survey, which includes oversamples of racial and ethnic minority populations in the U.S., we investigate the impact of racial identity and racism on political participation and public opinion. First, we analyze whether valuing belonging in a racial group can influence a respondent’s interest in politics. Then, we analyze how personal experiences with racism may influence how respondents value policies aimed at addressing racial and ethnic discrimination. Our findings suggest that racial group belonging is not a predictor of political interest, while gender identity, racial identity, and party affiliation may predict higher levels of political interest. Additionally, gender identity, racial identity, and personal experiences with discrimination may predict increased levels of support for anti-discrimination policies.
+
+# Introduction
+
+The United States is becoming increasingly racially and ethnically diverse. In the decades following the 1965 Immigration and Nationality Act, the population of Americans born outside of the U.S. increased by more than 400% \[1\]. This increased diversity was also visible in the results from the 2020 decennial U.S. Census. According to data from the 2020 U.S. Census, the share of Americans that are White alone (and do not identify as any other race or ethnicity in addition to White) has declined by approximately 9% since 2010. In addition, the population of multiracial Americans has experienced a 276% increase since the 2010 decennial Census. The percentage of people who reported multiple races increased more than all of the single-race groups, increasing from approximately 3% of the population in 2010 to 10% of the population in 2020 \[2\].
+
+As a result of these trends that have led to increased shares of non-white groups in the U.S. the electoral power of racial and ethnic minority groups has become more salient in American politics. Researchers, policymakers, and advocacy groups must understand the factors that drive political participation and issue preferences among racial and ethnic minority groups, as well as differences between groups. 
+
+Researchers commonly understand the drivers for participation in American politics through the “resource model of political participation”, popularized by Henry E. Brady, Sidney Verba and Kay Lehman Schlozman \[3\]. This theory asserts that socioeconomic status predicts political participation, with a specific focus on resources such as time, money, and the organizational skills that are used to navigate civic life (“civic skills”). However, other scholars have pushed back on the generalizability of this theory for non-white groups, as these analyses were based on studies of white Americans and their conclusions may not hold true for members of minority groups \[4\]. In this study, we analyze how racial and ethnic minority groups navigate American politics and the factors that influence their political participation and issue preference. 
+
+In a similar vein, researchers have studied whether racial and ethnic discrimination can have a causal effect on the political participation of minority communities. Recent studies on Latino Americans and Indian Americans \[5\] \[6\], have found mixed effects. We address how racial and ethnic discrimination may potentially shape the issue preferences of American voters in this study. 
+
+Our analysis focuses on two topics within the field of racial and ethnic politics. 
+
+1.  Are Americans who believe that their race is important to their identity more likely to be interested in politics than those that are not?
+
+2.  How do personal experiences with racism, in combination with demographic factors such as race, gender, and education, influence the importance respondents place on policies aimed at addressing racial and ethnic discrimination, controlling for other social and political factors?
+
+To investigate these two research questions, we used survey data from the 2020 Collaborative Multi-Racial Post-Election Survey (CMPS) \[7\]. The CMPS is an extensive dataset designed to capture perspectives across racial and ethnic groups in the United States. The survey was offered in multiple languages, including English, Spanish, Chinese, Korean, Vietnamese, Arabic, Urdu, Farsi, and Haitian Creole. 
+
+# Methods
+
+## Data
+
+The 2020 Collaborative Multi-Racial Post-Election Survey (CMPS) dataset contains 17,545 rows, with each row representing an individual respondent's data, and 1,490 columns, each capturing a specific variable or question response. These variables include demographic information and responses to survey questions on political and social issues.
+
+## Variable Selection
+
+Prior to modelling, we conducted exploratory data analysis to examine relationships between our predictor and outcome variables. First, we created summary tables for multiple survey questions. Then, we conducted chi-square tests to understand the relationship between the categorical variables. Finally, we plotted the relationships between the outcome variables and demographic variables to account for potential differences for subgroups in our dataset. 
+
+We streamlined the dataset by consolidating religious affiliations into a single categorical variable, Religion, with a new category, Multiple Religions, for respondents reporting more than one affiliation. Variables with over 50% missing values were excluded. Key demographic variables, including educational attainment, sexual orientation, and rurality were re-coded into simplified categories. Age and race were structured into meaningful groups. Extraneous variables were removed, and categorical variables were converted to ordered factors to ensure consistency and clarity for analysis.
+
+## Model Fitting and Evaluation
+
+### Research Question 1: How Racial Group Belonging Impacts Interest in Politics
+
+To model the outcome variable Q29 (interest in participating in politics), we used an ordinal logistic regression with predictors including Q271 (importance of belonging to a racial group to one’s identity), race, age, educational attainment, and political party affiliation. We also included an interaction term between gender and Q271 to assess whether the effect of the importance of belonging to a racial group on one’s identity differs based on one’s gender identity. To assess the model we used a confusion matrix to compare predicted and observed values. Finally, we used the Brant test to check for violations of the proportional odds assumption.
+
+### Research Question 2: How Experiences with Discrimination Affect the Prioritization of Anti-Discrimination Policies
+
+We used a binomial logistic regression to model the outcome variable, Q1R5 (importance placed on anti-discrimination policies), with predictors including race, gender identity, sexual orientation, age, education, community type, experiences with racism, and perception of racism for different groups. An interaction term between gender and race was excluded due to multicollinearity. Stepwise regression and model diagnostics, including VIF and AIC, ensured a stable and interpretable model.
+
+# Results
+
+### Research Question 1:
+
+For the first research question, the outcome variable Q29 (interest in participating in politics) was modeled using ordinal logistic regression. Q29, an ordinal variable captured responses to the question: “Some people are very interested in politics while other people can’t stand politics, how about you? Are you…” with response options “Very interested in politics”, “Somewhat interested”, “Not that interested in politics”, and “Not at all interested in politics.” The overall sample reported high levels of interest in politics, with 43% of respondents reporting that they were somewhat interested and one in four (25%) saying they were very interested in politics.
+
+The model also included the predictor variable Q271, a categorical variable that captured responses to the question: “How important is being \[RACIAL GROUP\] to your identity?”, with response options “Extremely important”, “Very important”, “Moderately important”, “Slightly important”, and “Not at all important”. The respondent’s identified racial group was brought into the survey question based on their prior survey responses. Over half (56%) of respondents reported that being a member of their racial group was very or extremely important to their identity. Only 23% of respondents said that being a member of their racial group was slightly or not at all important to their identity.
+
+The model also included multiple predictor variables that control for the impact of other aspects of a respondent’s identity, socioeconomic status, and political preferences These included demographic variables such as the primary race reported by a respondent, their age, and gender, as well as a respondent’s reported level of educational attainment and political party affiliation. Finally, the model included an interaction term between gender and Q271 (the importance a respondent placed in belonging to their racial group) to investigate whether there are combined effects of gender and racial belonging. 
+
+(Odds Ratio Plot)
+
+Controlling for age, race, gender identity, educational attainment, and party affiliation, respondents who considered belonging in their racial group to be slightly or moderately important to their identity were marginally more likely to report a higher level of interest in politics than those that considered belonging in their racial group not at all important to their identity, but these effects were not statistically significant. Surprisingly, respondents who considered belonging in their racial group to be very or extremely important to their identity were less likely to report higher levels of interest in politics than the reference category (those who did not place a high importance on belonging to their racial group), holding the other demographic variables constant. These results were statistically significant. 
+
+Holding other variables constant, all racial groups in our sample reported increased odds of reporting a higher level of interest in politics compared to white respondents, except for Arab, Middle East & North African (MENA) respondents. However, the effects for respondents of Arab/MENA heritage was not statistically significant. Black respondents were 1.15 times more likely to report a higher level of interest in politics than White respondents. Latino individuals were 1.26 times more likely to report a higher level of interest in politics compared to white individuals. These effects were even more pronounced for smaller racial/ethnic minority groups. Asian Americans were 1.68 times more likely to report a higher level of interest in politics compared to white respondents. Native American (1.49 times more likely) and Native Hawaiian and Pacific Islander respondents (1.78 times more likely) were also more likely to report a higher level of interest in politics compared to white respondents.
+
+For women, the odds of reporting a higher level of interest in politics were 1.58 times higher than men, holding the other demographic variables constant. Non-binary respondents and respondents who specified a different gender identity were less likely to report higher levels of interest in politics than men.  For women and non-binary respondents, reporting that belonging to their racial group was very or extremely important to their racial identity appeared to increase their odds of reporting higher levels of interest in politics, holding other variables constant. However, none of the effects of the interaction term between gender and the importance a respondent placed in belonging to their racial group were statistically significant.
+
+Contrary to the resource model of participation, increases in educational attainment did not result in increased odds of reporting a higher level of interest in politics. Similarly, older respondents reported decreased odds of reporting a higher level of interest in politics compared to the reference category of individuals aged 18-29 years old. 
+
+For respondents that identified as Democrats, holding other factors constant, their odds of reporting a higher level of interest in politics decreased 12% compared to Republican respondents. However, these results differed for respondents that identified as Independent or belonging to another party. For Independent respondents, their odds of reporting a higher level of interest in politics were 1.72 times higher than Republican respondents,  holding other variables constant. For respondents that identified with another party, the odds of reporting a higher level of interest in politics were 4.7 times higher than Republican respondents, holding other variables constant. This may indicate that individuals who identify with parties outside of the dominant two party system in the U.S. may already be more interested in politics than typical American respondents. 
+
+To determine if the ordinal logistic regression model violated the proportional odds assumption, we produced a confusion matrix. The confusion matrix revealed that the model had a low level of precision, with an accuracy value of 0.4503. The sensitivity of the model was low for each class except for the response option of being “Somewhat interested” in politics, which had an associated sensitivity of (0.8973). These results indicate that the model struggled to correctly identify respondents who were “Very interested”, “Not that interested”, or “Not at all interested” in politics. The specificity of the model was high for each class, except for the response option of being “Somewhat interested” in politics, indicating that the model classified a high rate of false positives for this class, and it was potentially overly biased to predicting that respondents were “Somewhat interested” in politics. 
+
+We also produced a confusion matrix for a multinomial model with the same predictor variables. The confusion matrices were very similar, providing evidence that the proportional odds assumption was not violated. In addition, we conducted a Brant test. The Brant test result indicated that the proportional odds assumption was upheld.
+
+### Research Question 2:
+
+For the second research question, the variable outcome variable Q1R5 (i.e. importance placed on stopping discrimination against racial/ethnic minorities) was modeled using binomial logistic regression, an appropriate method for binary outcomes. Despite the skewed distribution of the dependent variable—74.25% of respondents considered it "Not Important" as shown in fig. 1—logistic regression is robust to such imbalances.
+
+(INSERT PIE CHART)
+
+The model incorporated predictors to examine factors influencing the importance respondents placed on anti-discrimination policies. These included personal experiences with racism, captured by **Q627** (unfair treatment or discrimination) and **Q633** (impact of discrimination on life satisfaction), alongside demographic variables such as **S2_RACE_PRIME** (primary race), **S3** (sexual orientation), **S3B** (gender identity), **S5_AGE** (age), **S13** (education), and **S14** (community type: rural, suburban, urban). Variables **Q629R1–Q629R7** were excluded due to substantial missing data (\>52%). Nonetheless, because it overlapped significantly with **Q627 (see fig. 2)**, the overall essence of experiences with racism was retained in a more general and complete form.
+
+(INSERT ODDS RATIO CHART)
+
+To investigate the combined effects of gender and race and engage with intersectionality theory, an interaction term between Gender and Primary Race was initially included in the model. However, this introduced multicollinearity, as indicated by aliased coefficients and elevated Variance Inflation Factor (VIF) values, likely due to data sparsity and the underrepresentation of certain gender-race combinations, resulting in near-perfect linear dependencies. To resolve this, the interaction term was removed, and additional interactions were avoided to mitigate similar issues. Simplifying the model enhanced interpretability and reduced the risk of overfitting.
+
+To further address high VIF values observed in predictors such as **Perceptions of Discrimination Against Latinos** (GVIF = 12.45) and **Perceptions of Discrimination Against Immigrants** (GVIF = 11.53), forward and backward stepwise regression was employed. This approach optimized model fit using the Akaike Information Criterion (AIC) while minimizing multicollinearity. The iterative process ensured that only the most significant predictors were retained, reducing VIF values and improving the model's stability.
+
+Gender and race emerged as critical determinants in prioritizing anti-discrimination policies. Women were 1.25 times more likely than men to consider these policies important, while non-binary individuals exhibited 1.40 times higher odds, though this result was not statistically significant. Race had an even more pronounced impact; Black respondents had 3.55 times higher odds, Asian Americans had 2.12 times higher odds, Latinos had 1.78 times higher odds, Native Hawaiians/Pacific Islanders had 2.17 times higher odds, and Arab/MENA individuals had 2.67 times higher odds of prioritizing these policies compared to White respondents.
+
+Personal experiences with racism further shaped support for these policies. Respondents who reported experiencing unfair treatment or discrimination were 1.12 times more likely to prioritize anti-discrimination efforts. The impact of discrimination on life satisfaction exhibited a notable gradient: individuals who reported no impact on their life satisfaction were 0.73 times less likely to consider these policies important, while those who experienced greater impacts demonstrated stronger support.
+
+Perceptions of discrimination also played a significant role. Respondents perceiving lower levels of discrimination against Black individuals had 0.48–0.65 times lower odds of prioritizing anti-discrimination policies, whereas perceptions of minimal or no discrimination against Whites were associated with 1.47–2.01 times higher odds of supporting such policies. Sexual orientation also influenced prioritization, with queer respondents having 1.15 times higher odds of supporting anti-discrimination policies compared to non-queer respondents.
+
+The confusion matrix reveals that the model has high **sensitivity** (0.9488), thus accurately identifying respondents who consider policies "Not important." However, the low **specificity** (0.1683) indicates that it struggles to correctly classify those who view the policies as "Important." This is expected given the dataset's skew toward "Not important" (74.25%). The **AUC** of 0.7186 suggests moderate predictive ability, but the model's low specificity and imbalance in class distribution highlight areas for improvement.
+
+# Conclusion
+
+In this analysis, we investigated whether valuing belonging in a racial group can influence a respondent’s interest in politics. We found that the importance an individual placed in belonging to their specific racial group did not have a significant effect on their interest in politics. Contrary to the resource model of participation, age and increases in educational attainment did not appear to result in increased odds of reporting a higher level of interest in politics. The most significant predictors of increased levels of interest in politics were an individual’s gender identity, racial identity, and political party affiliation.
+
+Then, we analyzed how personal experiences with racism may influence how respondents value policies aimed at addressing racial and ethnic discrimination. Our findings underscore the intersectional influences of race, gender, and personal experiences with discrimination on public attitudes toward anti-discrimination policies. Furthermore, perceptions of discrimination against various groups highlight the complex social dynamics that shape policy prioritization. The results provide essential insights for tailoring advocacy and policy efforts to address racial and ethnic discrimination effectively.
+
+Despite the value of this survey’s oversamples of racial and ethnic minority communities, some limitations were present in our study. For the ordinal logistic regression, we used educational attainment as a proxy for socioeconomic status. This is a commonly used proxy measure in behavioral and social sciences \[8\]. Further research on the influence of socioeconomic status of political participation for racial/ethnic minorities and the use of other measures such as household income or wealth would help us understand if the aforementioned resource model of participation is indeed generalizable to other groups in the American electorate. 
+
+The effect of race on political interest appeared to be more pronounced for members of very small racial/ethnic minority groups in our analysis such as Asian Americans, Native Americans, Native Hawaiians and Pacific Islanders. Both models had low specificity, suggesting that they struggled to correctly identify cases where respondents had low levels of political interest or respondents who considered anti-discrimination policies to be important.
+
+These challenges and opportunities highlight the importance of disaggregated data and further research in partnership with small racial and ethnic minority communities within the United States. Future work on political participation and public opinion among racial and ethnic minorities could support researchers, policymakers, and advocates efforts to better understand and support these communities. 
+
+# Appendix
+
+# References
+
+1.  Noe-Bustamante, A. B., Christine Tamir, Lauren Mora and Luis. (2020, August 20). Facts on U.S. immigrants, 2018. Pew Research Center. https://www.pewresearch.org/race-and-ethnicity/2020/08/20/facts-on-u-s-immigrants/
+
+2.  Jones, N., Marks, R., Ramirez, R., & Rios-Vargas, M. (2021, August 12). Improved Race and Ethnicity Measures Reveal U.S. Population Is Much More Multiracial. The United States Census Bureau. https://www.census.gov/library/stories/2021/08/improved-race-ethnicity-measures-reveal-united-states-population-much-more-multiracial.html
+
+3.  Brady, H. E., Verba, S., & Schlozman, K. L. (1995). Beyond Ses: A Resource Model of Political Participation. The American Political Science Review, 89(2), 271–294. https://doi.org/10.2307/2082425
+
+4.  Leighley, J. E. (2021). Strength in Numbers? Princeton University Press.
+
+5.  Besco, R., Garcia-Rios, S., Lagodny, J., Lajevardi, N., Oskooii, K., & Tolley, E. (2022). Fight not flight: The effects of explicit racism on minority political engagement. Electoral Studies, 80, 102515. https://doi.org/10.1016/j.electstud.2022.102515
+
+6.  Wood, Z. J., & John-Henderson, N. A. (2024). Perceived discrimination, political efficacy, and political participation in American Indian adults. *Frontiers in Political Science*, *6*. https://doi.org/10.3389/fpos.2024.1328521
+
+7.  Frasure, Lorrie, Wong, Janelle, Vargas, Edward, and Barreto, Matt. Collaborative Multi-racial Post-election Survey (CMPS), United States, 2020. Inter-university Consortium for Political and Social Research \[distributor\], 2024-06-11. https://doi.org/10.3886/ICPSR39096.v1
+
+8.  Oakes, M. (n.d.). Measuring Socioeconomic Status 1. Learning Objectives. https://obssr.od.nih.gov/sites/obssr/files/Measuring-Socioeconomic-Status.pdf

@@ -91,6 +91,13 @@ There appears to be a significant relationship between the following variables a
 
 -   Nativity (born in US or other)
 
+# Prop Tables
+
+```{r}
+
+
+```
+
 # Fitting OLR Model Using polr()
 
 ```{r}

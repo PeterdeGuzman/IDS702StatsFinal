@@ -307,7 +307,7 @@ full_summary_table
 ```
 
 | **Variable** | **Level** | **Count** | **Proportion** |
-|------------------|-------------------|------------------|------------------|
+|----|----|----|----|
 | Q29 | \(1\) Very interested in politics | 4306 | 25% |
 | Q29 | \(2\) Somewhat interested | 7612 | 43% |
 | Q29 | \(3\) Not that interested in politics | 3643 | 21% |

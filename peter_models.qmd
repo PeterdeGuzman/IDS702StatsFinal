@@ -157,7 +157,8 @@ new_dataset <- data.frame(race_recoded=c("White", "Black", "Asian American", "La
 
 ```
 
-# Fitting OLR with interaction terms
+# Fitting OLR with interaction terms 
+## This is the model we include in the final report.
 
 ```{r}
 library(MASS) # package for model
@@ -169,8 +170,14 @@ dataset_clean$Q271_reordered <- factor(dataset_clean$Q271,
                                      "(3) Moderately important",
                                      "(2) Very important",
                                      "(1) Extremely important"))
+dataset_clean$Q29_reordered <- factor(dataset_clean$Q29,
+                            levels = c("(4) Not at all interested in politics",
+                                     "(3) Not that interested in politics",
+                                     "(2) Somewhat interested",
+                                     "(1) Very interested in politics"))
 
-ord_mod_interactions <- polr(Q29 ~ Q271_reordered * S3B +
+
+ord_mod_interactions <- polr(Q29_reordered ~ Q271_reordered * S3B +
                                race_recoded +
                   age_recoded +
             educ +  # Educational Attainment
@@ -183,7 +190,7 @@ summary(ord_mod_interactions)
 
 
 pvals_interact <- pnorm(-abs(summary(ord_mod_interactions)$coef[,"t value"]))*2
-ctable_interact <- cbind(summary(ord_mod_interactions)$coef,pvals)
+ctable_interact <- cbind(summary(ord_mod_interactions)$coef,pvals_interact)
 
 ctable_interact
 
@@ -289,9 +296,53 @@ odds_ratio_plot <- function(model) {
 }
 
 # Generate the plot
-odds_ratio_plot(ord_mod)
+odds_ratio_plot(ord_mod_interactions)
 
 ```
+
+# Fitting OLR Model with Interaction Term (Q271 * Q21 Party ID)
+
+```{r}
+
+library(MASS) # package for model
+library(caret) # package for confusion matrix
+
+# dataset_clean$Q271_reordered <- factor(dataset_clean$Q271,
+#                             levels = c("(5) Not at all important",
+#                                      "(4) Slightly important",
+#                                      "(3) Moderately important",
+#                                      "(2) Very important",
+#                                      "(1) Extremely important"))
+
+ord_mod_interactpoliticalID <- polr(Q29 ~ Q271_reordered * Q21 +
+                               race_recoded +
+                  age_recoded +
+            educ +  # Educational Attainment
+            S3B, # Gender
+          data = dataset_clean, Hess=TRUE)
+
+
+
+summary(ord_mod_interactpoliticalID)
+
+
+pvals_interactpoliticalID <- pnorm(-abs(summary(ord_mod_interactpoliticalID)$coef[,"t value"]))*2
+ctable_interactpoliticalID <- cbind(summary(ord_mod_interactpoliticalID)$coef,pvals_interactpoliticalID)
+
+ctable_interactpoliticalID
+
+(exp_coefs_interact <- exp(cbind(OR=coef(ord_mod_interactpoliticalID),confint(ord_mod_interactpoliticalID))))
+
+head(ord_mod_interactpoliticalID$fitted.values)
+head(predict(ord_mod_interactpoliticalID))
+
+confusionMatrix(predict(ord_mod_interactpoliticalID), dataset_clean$Q29, mode="everything")
+
+
+```
+
+
+
 
 # Fitting MLR Model
 

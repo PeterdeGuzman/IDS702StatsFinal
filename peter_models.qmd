@@ -174,7 +174,7 @@ dataset_clean$Q29_reordered <- factor(dataset_clean$Q29,
                             levels = c("(4) Not at all interested in politics",
                                      "(3) Not that interested in politics",
                                      "(2) Somewhat interested",
-                                     "(1) Very interested in politics"))
+                                     "(1) Very interested in politics"), ordered=TRUE)
 
 
 ord_mod_interactions <- polr(Q29_reordered ~ Q271_reordered * S3B +
@@ -314,7 +314,7 @@ library(caret) # package for confusion matrix
 #                                      "(2) Very important",
 #                                      "(1) Extremely important"))
 
-ord_mod_interactpoliticalID <- polr(Q29 ~ Q271_reordered * Q21 +
+ord_mod_interactpoliticalID <- polr(Q29_reordered ~ Q271_reordered * Q21 +
                                race_recoded +
                   age_recoded +
             educ +  # Educational Attainment

@@ -300,6 +300,122 @@ odds_ratio_plot(ord_mod_interactions)
 
 ```
 
+# Testing plotting function
+```{r}
+or_data_test <- exp(cbind(OR=coef(ord_mod_interactions),confint(ord_mod_interactions)))
+  
+  # Calculate p-values
+p_values_test <- pnorm(-abs(summary(ord_mod_interactions)$coefficients[,"t value"]))*2
+  
+  # Keep only significant variables
+sig_indices_test <- p_values_test[names(coef(ord_mod_interactions))] < 0.05
+or_data_sig_test <- or_data_test[sig_indices_test, ]
+
+rename_map <- c(
+    "Q271_reordered(2) Very important" = "Racial Belonging - Very Important",
+    "Q271_reordered(1) Extremely important" = "Racial Belonging - Extremely Important",
+    "S3B(2) Woman" = "Gender - Woman",
+    "S3B(3) Non-binary" = "Gender - Non-binary",
+    "race_recodedBlack" = "Race - Black",
+    "race_recodedAsian American" = "Race - Asian",
+    "race_recodedLatino" = "Race - Latino",
+    "race_recodedAIAN" = "Race - Native",
+    "race_recodedNHPI" = "Race - NHPI",
+    "age_recoded50-59" = "Age - 50-59",
+    "age_recoded60-69" = "Age - 60-69",
+    "age_recoded70+" = "Age - 70+",
+    "educSome college experience" = "Education - Some College",
+    "educCollege graduate" = "Education - College Graduate",
+    "Q21(2) Democrat" = "Party ID - Democrat",
+    "Q21(3) Independent" = "Party ID - Independent",
+    "Q21(4) Other party" = "Party ID - Other",
+    "Q271_reordered(1) Extremely important:S3B(2) Woman" = "Interaction: Racial Belonging & Gender: Woman"
+  )
+  
+rownames(or_data_sig_test) <- rename_map[rownames(or_data_sig_test)]
+
+or_data_sig_test
+
+```
+
+# Trying to run the plot again but with explicit y-axis Variable labels
+
+```{r}
+odds_ratio_plot_labelled <- function(model) {
+  # Get odds ratios and CIs
+  or_data <- exp(cbind(OR=coef(model),confint(model)))
+  
+  # Calculate p-values
+  p_values <- pnorm(-abs(summary(model)$coefficients[,"t value"]))*2
+  
+  # Keep only significant variables
+  sig_indices <- p_values[names(coef(model))] < 0.05
+  or_data_sig <- or_data[sig_indices, ]
+  
+  rename_map <- c(
+    "Q271_reordered(2) Very important" = "Racial Belonging - Very Important",
+    "Q271_reordered(1) Extremely important" = "Racial Belonging - Extremely Important",
+    "S3B(2) Woman" = "Gender - Woman",
+    "S3B(3) Non-binary" = "Gender - Non-binary",
+    "race_recodedBlack" = "Race - Black",
+    "race_recodedAsian American" = "Race - Asian",
+    "race_recodedLatino" = "Race - Latino",
+    "race_recodedAIAN" = "Race - Native",
+    "race_recodedNHPI" = "Race - NHPI",
+    "age_recoded50-59" = "Age - 50-59",
+    "age_recoded60-69" = "Age - 60-69",
+    "age_recoded70+" = "Age - 70+",
+    "educSome college experience" = "Education - Some College",
+    "educCollege graduate" = "Education - College Graduate",
+    "Q21(2) Democrat" = "Party ID - Democrat",
+    "Q21(3) Independent" = "Party ID - Independent",
+    "Q21(4) Other party" = "Party ID - Other",
+    "Q271_reordered(1) Extremely important:S3B(2) Woman" = "Interaction: Racial Belonging & Gender: Woman"
+  )
+  or_data_sig_renamed <- or_data_sig
+  rownames(or_data_sig_renamed) <- rename_map[rownames(or_data_sig_renamed)]
+
+  
+  
+  ggplot() +
+    # Add vertical line at OR = 1
+    geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 0.7) +
+    # Add points and error bars
+    geom_point(aes(x = or_data_sig_renamed[,1], 
+                   y = reorder(rownames(or_data_sig_renamed), or_data_sig_renamed[,1])), 
+              size = 4, color = "blue") +
+    geom_errorbarh(aes(xmin = or_data_sig[,2], 
+                       xmax = or_data_sig[,3],
+                       y = reorder(rownames(or_data_sig_renamed), or_data_sig_renamed[,1])),
+                   height = 0.3, color = "black") +
+    # Customize theme
+    theme_minimal() +
+    theme(
+      axis.text.y = element_text(size = 6, color = "black"),
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+      axis.title.x = element_text(size = 12, face = "bold"),
+      axis.title.y = element_text(size = 12, face = "bold"),
+      plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+      plot.margin = margin(1, 1, 1, 1, "cm"),
+      legend.text = element_text(size = 8),
+      legend.title = element_text(size = 9)
+    ) +
+    # Add labels
+    labs(
+      title = "Significant Variables with Confidence Intervals",
+      x = "Odds Ratio",
+      y = "Variables"
+    )
+
+}
+
+# Generate the plot
+odds_ratio_plot_labelled(ord_mod_interactions)
+
+```
+
+
+
 # Fitting OLR Model with Interaction Term (Q271 * Q21 Party ID)
 
 ```{r}

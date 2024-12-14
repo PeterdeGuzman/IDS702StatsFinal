@@ -157,7 +157,8 @@ new_dataset <- data.frame(race_recoded=c("White", "Black", "Asian American", "La
 
 ```
 
-# Fitting OLR with interaction terms 
+# Fitting OLR with interaction terms
+
 ## This is the model we include in the final report.
 
 ```{r}
@@ -214,41 +215,41 @@ brant(ord_mod_interactions)
 
 | Variable | Odds Ratio | 2.5% (Confidence Interval) | 97.5% (Confidence Interval) |
 |------------------|------------------|------------------|------------------|
-| Q271 (4) Slightly important | 1.0338781 | 0.86761871 | 1.2317529 |
-| Q271 (3) Moderately important | 1.0228231 | 0.88466618 | 1.1826555 |
-| Q271 (2) Very important | 0.8366761 | 0.72314779 | 0.9680337 |
-| Q271 (1) Extremely important | 0.6069588 | 0.52449164 | 0.7024084 |
-| S3B(2) Woman | 1.5887610 | 1.36312914 | 1.8518245 |
-| S3B(3) Non-binary | 0.5380781 | 0.28888679 | 0.9978406 |
-| S3B(4) Something else (Specify) | 0.4648621 | 0.07401426 | 2.6422344 |
-| race Black | 1.1525119 | 1.04988995 | 1.2652177 |
-| race Asian American | 1.6819184 | 1.53325820 | 1.8451528 |
-| race Latino | 1.2583888 | 1.14546256 | 1.3825307 |
-| race AIAN | 1.4882734 | 1.27404185 | 1.7384045 |
-| race NHPI | 1.7838764 | 1.45756175 | 2.1825886 |
-| race Arab/MENA | 0.8628526 | 0.66889425 | 1.1122887 |
-| age 30-39 | 0.9698580 | 0.89048308 | 1.0563119 |
-| age 40-49 | 1.0813779 | 0.98549367 | 1.1865407 |
-| age 50-59 | 0.9107924 | 0.82952560 | 0.9996833 |
-| age 60-69 | 0.7553567 | 0.68762045 | 0.8297158 |
-| age 70+ | 0.5918432 | 0.52889988 | 0.6621363 |
-| educSome college experience | 0.6551005 | 0.60189454 | 0.7129797 |
-| educCollege graduate | 0.4476726 | 0.41528212 | 0.4825867 |
-| Q21(2) Democrat | 0.8823547 | 0.81416780 | 0.9562372 |
-| Q21(3) Independent | 1.7222132 | 1.58330889 | 1.8733830 |
-| Q21(4) Other party | 4.7003458 | 4.03685844 | 5.4748427 |
-| Q271 4) Slightly important:S3B(2) Woman | 1.0044380 | 0.78966197 | 1.2778491 |
-| Q271 (3) Moderately important:S3B(2) Woman | 1.0569625 | 0.87144637 | 1.2819704 |
-| Q271 (2) Very important:S3B(2) Woman | 1.0212671 | 0.84557349 | 1.2335590 |
-| Q271 (1) Extremely important:S3B(2) Woman | 1.2324558 | 1.02421823 | 1.4830676 |
-| Q271 (4) Slightly important:S3B(3) Non-binary | 1.5393710 | 0.46529911 | 5.0344630 |
-| Q271 (3) Moderately important:S3B(3) Non-binary | 1.5246008 | 0.57882727 | 4.0084234 |
-| Q271 (2) Very important:S3B(3) Non-binary | 1.9464262 | 0.77448045 | 4.8746428 |
-| Q271 (1) Extremely important:S3B(3) Non-binary | 1.1408623 | 0.45797295 | 2.8216144 |
-| Q271 (4) Slightly important:S3B(4) Something else (Specify) | 4.4125437 | 0.49596064 | 41.9119559 |
-| Q271 (3) Moderately important:S3B(4) Something else (Specify) | 0.5879278 | 0.05055911 | 4.9095993 |
-| Q271 2) Very important:S3B(4) Something else (Specify) | 9.6145175 | 0.70357378 | 160.9916657 |
-| Q271 1) Extremely important:S3B(4) Something else (Specify) | 1.5327973 | 0.20059858 | 12.5345043 |
+| Q271 (4) Slightly important | 0.9672589 | 0.811845068 | 1.1525850 |
+| Q271 (3) Moderately important | 0.9776608 | 0.845556718 | 1.1303745 |
+| Q271 (2) Very important | 1.1952004 | 1.033019394 | 1.3828451 |
+| Q271 (1) Extremely important | 1.6474969 | 1.423670208 | 1.9066091 |
+| S3B(2) Woman | 0.6294256 | 0.540015144 | 0.7336072 |
+| S3B(3) Non-binary | 1.8576658 | 1.002509318 | 3.4617409 |
+| S3B(4) Something else (Specify) | 2.1359493 | 0.377740111 | 13.5124525 |
+| race Black | 0.8676620 | 0.790376010 | 0.9524806 |
+| race Asian American | 0.5945609 | 0.541964870 | 0.6522143 |
+| race Latino | 0.7946622 | 0.575235415 | 0.7848896 |
+| race AIAN | 0.6719204 | 1.27404185 | 1.7384045 |
+| race NHPI | 0.5606006 | 0.458205702 | 0.6860792 |
+| race Arab/MENA | 1.1589043 | 0.899447122 | 1.4956228 |
+| age 30-39 | 1.0310801 | 0.946696738 | 1.0563119 |
+| age 40-49 | 0.9247623 | 0.98549367 | 1.1229868 |
+| age 50-59 | 1.0979487 | 1.000027913 | 1.2054892 |
+| age 60-69 | 1.3238874 | 1.205240800 | 1.4542874 |
+| age 70+ | 1.6896464 | 1.510226543 | 1.8907050 |
+| educSome college experience | 1.5264694 | 1.402573135 | 1.6614197 |
+| educCollege graduate | 2.2337286 | 2.072162224 | 2.4081069 |
+| Q21(2) Democrat | 1.1333513 | 1.045765624 | 1.2282275 |
+| Q21(3) Independent | 0.5806653 | 0.533801211 | 0.6315870 |
+| Q21(4) Other party | 0.2127592 | 0.182654104 | 0.2477198 |
+| Q271 4) Slightly important:S3B(2) Woman | 0.9955364 | 0.782564309 | 1.2663323 |
+| Q271 (3) Moderately important:S3B(2) Woman | 0.9461281 | 0.780040309 | 1.1475378 |
+| Q271 (2) Very important:S3B(2) Woman | 0.9791675 | 0.810674379 | 1.1826356 |
+| Q271 (1) Extremely important:S3B(2) Woman | 0.8114102 | 0.674275440 | 0.9763646 |
+| Q271 (4) Slightly important:S3B(3) Non-binary | 0.6505015 | 0.198565161 | 2.1505278 |
+| Q271 (3) Moderately important:S3B(3) Non-binary | 0.6563254 | 0.249594245 | 1.7277048 |
+| Q271 (2) Very important:S3B(3) Non-binary | 0.5140828 | 0.205132143 | 1.2905898 |
+| Q271 (1) Extremely important:S3B(3) Non-binary | 0.8770903 | 0.354410521 | 2.1835545 |
+| Q271 (4) Slightly important:S3B(4) Something else (Specify) | 0.2279084 | 0.023857021 | 2.0164000 |
+| Q271 (3) Moderately important:S3B(4) Something else (Specify) | 1.7158304 | 0.146865519 | 19.7516328 |
+| Q271 2) Very important:S3B(4) Something else (Specify) | 0.1049752 | 0.006213617 | 1.4210951 |
+| Q271 1) Extremely important:S3B(4) Something else (Specify) | 0.6584933 | 0.079780177 | 4.9850479 |
 
 # Producing odds ratio plot for ordinal model with interactions
 
@@ -301,6 +302,7 @@ odds_ratio_plot(ord_mod_interactions)
 ```
 
 # Testing plotting function
+
 ```{r}
 or_data_test <- exp(cbind(OR=coef(ord_mod_interactions),confint(ord_mod_interactions)))
   
@@ -414,9 +416,7 @@ odds_ratio_plot_labelled(ord_mod_interactions)
 
 ```
 
-
-
-# Fitting OLR Model with Interaction Term (Q271 * Q21 Party ID)
+# Fitting OLR Model with Interaction Term (Q271 \* Q21 Party ID)
 
 ```{r}
 
@@ -456,9 +456,6 @@ odds_ratio_plot_labelled(ord_mod_interactions)
 
 
 ```
-
-
-
 
 # Fitting MLR Model
 

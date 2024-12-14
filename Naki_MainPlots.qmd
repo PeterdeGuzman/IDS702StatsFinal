@@ -20,7 +20,7 @@ library(tidyr)
 ```
 
 ```{r}
-file_path <- "/Users/nakiyahdhariwala/StatsProject/39096-0001-Data.rda"
+file_path <- "39096-0001-Data.rda"
 
 load(file_path)          # Load the RDA file
 ls()                     # List objects loaded into the environment

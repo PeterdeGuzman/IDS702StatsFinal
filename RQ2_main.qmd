@@ -27,7 +27,7 @@ library(car)
 ```
 
 ```{r echo = FALSE, results = FALSE}
-file_path <- "/Users/nakiyahdhariwala/StatsProject/39096-0001-Data.rda"
+file_path <- "39096-0001-Data.rda"
 
 load(file_path)          # Load the RDA file
 ls()                     # List objects loaded into the environment
@@ -125,7 +125,6 @@ str(dataset_new[required_cols])
 # Display the first few rows to check the changes
 head(dataset_new)
 ```
-
 
 ```{r echo=FALSE, results=FALSE}
 # Data Cleaning and Recoding for dataset_new
@@ -245,7 +244,6 @@ dataset_clean <- dataset_new[, !(names(dataset_new) %in% redundant_cols)]
 head(dataset_clean)
 ```
 
-
 ```{r echo=FALSE, results=FALSE}
 # Check the number of missing values for each variable
 missing_summary <- sapply(dataset_clean, function(x) sum(is.na(x)))
@@ -266,7 +264,6 @@ missing_summary <- data.frame(Variable = names(missing_proportions),
 
 print(missing_summary)
 ```
-
 
 ```{r echo=FALSE, results=FALSE}
 # Remove all redundant columns
@@ -335,6 +332,7 @@ vif(model)
 ```
 
 ## Model 2: stepwise regression
+
 ```{r echo=FALSE, results=FALSE}
 # Perform stepwise selection
 model_stepwise <- step(model, 
@@ -346,7 +344,6 @@ model_stepwise <- step(model,
 # print(model_stepwise)
 vif(model_stepwise)
 ```
-
 
 ```{r echo=FALSE, results=FALSE}
 
@@ -371,9 +368,8 @@ results_model_stepwise <- data.frame(
 results_model_stepwise
 ```
 
-
-
 ## Model Diagnostics
+
 ```{r echo=FALSE, results=FALSE}
 # Set seed for reproducibility
 set.seed(123)
@@ -429,7 +425,6 @@ conf_matrix <- confusionMatrix(predicted_classes, actual_classes)
 print(conf_matrix)
 ```
 
-
 ```{r echo=FALSE, results=FALSE}
 # Calculate the ROC curve
 roc_curve <- roc(test_data$ImportanceOfStoppingDiscriminationAgainstMinorities, 
@@ -448,8 +443,6 @@ abline(a = 0, b = 1, col = "red", lty = 2)  # Add diagonal line for random guess
 ggsave("roc_curve_plot.png", width = 8, height = 6)
 
 ```
-
-
 
 ```{r echo=FALSE}
 ## Figure 2: 
@@ -487,6 +480,7 @@ ggsave("Significant_Variables_Plot_Enhanced.png", width = 20, height = 10)
 ```
 
 ## Figure 1: Proportion of outcome variable for RQ 1
+
 ```{r echo=FALSE}
 # Calculate proportions
 proportions <- prop.table(table(dataset$Q1R5))

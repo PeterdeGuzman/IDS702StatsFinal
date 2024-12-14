@@ -1,0 +1,421 @@
+---
+title: "RQ2_final"
+format: html
+editor: visual
+
+execute: 
+  warning: false
+---
+
+### Loading Libraries
+
+```{r echo = FALSE}
+# Load necessary libraries
+library(dplyr)   # Provides %>% and mutate
+library(tidyverse)  # Optionally load the entire tidyverse if needed
+library(pROC)
+library(vcd)
+library(car)
+```
+
+```{r echo = FALSE, results = FALSE}
+# Read the dataset
+file_path <- "/Users/chensi/Desktop/MIDS/Fall 2024/IDS 702/ICPSR_39096/DS0001/39096-0001-Data.rda"
+
+load(file_path)          # Load the RDA file
+ls()                     # List objects loaded into the environment
+dataset <- da39096.0001  # Access the dataset
+
+head(dataset)
+ncol(dataset)
+nrow(dataset)
+```
+
+## Pre-processing Data
+
+```{r echo = FALSE, results=FALSE}
+# Define the required columns
+required_cols <- c(
+  # Outcome Variable: Stopping discrimination against racial/ethnic minorities
+  "Q1R5", 
+
+  # Demographic Variables
+  "S2_RACE_PRIME",   # Primary Race
+  "S3",              # SexualOrientation
+  "S3B",             # Gender
+  "S5_AGE",          # Age categories
+  "S13",             # Highest level of education
+  "S14",             # Community lived in
+
+  # Variables capturing experiences with racism
+  "Q629R1",          # Unfair treatment due to racial background/ethnicity
+  "Q629R2",          # Unfair treatment due to skin color
+  "Q629R3",          # Unfair treatment due to gender
+  "Q629R4",          # Unfair treatment due to sexuality/orientation
+  "Q629R5",          # Unfair treatment due to immigration status
+  "Q629R6",          # Unfair treatment due to religion
+  "Q629R7",          # Unfair treatment due to accent
+
+  "Q627",            # Treated unfairly or discriminated against because of your race, ethnicity, gender, sexuality, being an immigrant, religious heritage or having an accent?
+  "Q633",            # Discrimination impact on life satisfaction
+
+  # Religion-related variables
+  "Q58R1", "Q58R2", "Q58R3", "Q58R4", "Q58R5", "Q58R6", "Q58R7", 
+  "Q58R8", "Q58R9", "Q58R10", "Q58R11", "Q58R12", "Q58R13", 
+  "Q58R14", "Q58R15", # Various religious affiliations
+
+  # Perceptions of discrimination
+  "Q619_Q626R1",     # Perceptions of discrimination against Whites
+  "Q619_Q626R2",     # Perceptions of discrimination against Blacks
+  "Q619_Q626R3",     # Perceptions of discrimination against Asian Americans
+  "Q619_Q626R4",     # Perceptions of discrimination against Native Americans
+  "Q619_Q626R5",     # Perceptions of discrimination against Immigrants
+  "Q619_Q626R6",     # Perceptions of discrimination against Latinos
+  "Q619_Q626R7",     # Perceptions of discrimination against GaysAndLesbians
+  "Q619_Q626R8"      # Perceptions of discrimination against Muslims
+)
+```
+
+```{r echo=FALSE, results = FALSE}
+# Create a new dataframe with selected variables
+dataset_new <- dataset[, required_cols]
+
+# Recode the outcome variable 'Q1R5' for readability
+dataset_new$Q1R5 <- factor(
+  ifelse(
+    dataset_new$Q1R5 == "(0) NO TO: Stopping discrimination against racial/ethnic minorities", 
+    "Not important",
+    "Important"  # Remaining cases are "Important"
+  ),
+  levels = c("Not important", "Important") # Define factor levels
+)
+
+# Define the columns for perceptions of discrimination
+perception_cols <- c(
+  "Q619_Q626R1",  # Perceptions of discrimination against Whites
+  "Q619_Q626R2",  # Perceptions of discrimination against Blacks
+  "Q619_Q626R3",  # Perceptions of discrimination against Asian Americans
+  "Q619_Q626R4",  # Perceptions of discrimination against Native Americans
+  "Q619_Q626R5",  # Perceptions of discrimination against Immigrants
+  "Q619_Q626R6",  # Perceptions of discrimination against Latinos
+  "Q619_Q626R7",  # Perceptions of discrimination against GaysAndLesbians
+  "Q619_Q626R8",  # Perceptions of discrimination against Muslims
+  "Q633"          # Discrimination impact on life satisfaction
+)
+
+# Recode 'Don' as 'Don't know' and ensure columns remain factors
+dataset_new[perception_cols] <- lapply(dataset_new[perception_cols], function(x) {
+  x <- as.character(x)  # Temporarily convert to character for recoding
+  x <- ifelse(x == "(5) Don", "(5) Don't know", x)  # Recode 'Don' to 'Don't know'
+  factor(x)  # Convert back to factor
+})
+
+# Define required columns to convert to factors (if not already defined)
+# Assuming `required_cols` is previously defined; otherwise, specify explicitly
+dataset_new[required_cols] <- lapply(dataset_new[required_cols], as.factor)
+
+# Verify the structure of the dataset
+str(dataset_new[required_cols])
+
+# Display the first few rows to check the changes
+head(dataset_new)
+```
+
+```{r echo=FALSE, results=FALSE}
+# Data Cleaning and Recoding for dataset_new
+# Adding religion column
+dataset_new <- dataset_new |> 
+  mutate(
+    # Education recoding
+    educ = case_when(
+      S13 == "(1) Grades 1-8" ~ "No college experience",
+      S13 == "(2) Some High School, but did not graduate" ~ "No college experience",
+      S13 == "(3) High School graduate or GED" ~ "No college experience",
+      S13 == "(4) Some college" ~ "Some college experience",
+      S13 == "(5) Associates, 2-year degree" ~ "College graduate",
+      S13 == "(6) Bachelors, 4-year degree" ~ "College graduate",
+      S13 == "(7) Post-graduate degree" ~ "College graduate"
+    ),
+    # Sexual orientation recoding
+    sex_orientation = case_when(
+      S3 == "(01) Straight, that is, not gay or lesbian" ~ "Straight",
+      S3 == "(02) Gay or lesbian" ~ "Queer",
+      S3 == "(03) Bisexual" ~ "Queer",
+      S3 == "(04) Something else (Specify)" ~ "Queer",
+      S3 == "(88) Refused" ~ "Refused/Don't Know",
+      S3 == "(99) I don" ~ "Refused/Don't Know"
+    ),
+    # Urban vs rural recoding
+    rural = case_when(
+      S14 == "(1) Large urban area" ~ "Urban/suburban",
+      S14 == "(2) Large suburb near large city" ~ "Urban/suburban",
+      S14 == "(3) Small suburb near small town or city" ~ "Urban/suburban",
+      S14 == "(4) Small town or small city" ~ "Urban/suburban",
+      S14 == "(5) Rural area" ~ "Rural"
+    ),
+    # Race recoding
+    race_recoded = case_when(
+      S2_RACE_PRIME == "(1) White" ~ "White",
+      S2_RACE_PRIME == "(2) Hispanic or Latino" ~ "Latino",
+      S2_RACE_PRIME == "(3) Black or African American" ~ "Black",
+      S2_RACE_PRIME == "(4) Asian American" ~ "Asian American",
+      S2_RACE_PRIME == "(5) American Indian/Native American" ~ "AIAN",
+      S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Arab/MENA",
+      S2_RACE_PRIME == "(7) Native Hawaiian" ~ "NHPI",
+      S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "NHPI"
+    ),
+    # Age recoding
+    age_recoded = case_when(
+      S5_AGE == "(1) 16-17" ~ "16-17",
+      S5_AGE == "(2) 18-29" ~ "18-29",
+      S5_AGE == "(3) 30-39" ~ "30-39",
+      S5_AGE == "(4) 40-49" ~ "40-49",
+      S5_AGE == "(5) 50-59" ~ "50-59",
+      S5_AGE == "(6) 60-69" ~ "60-69",
+      S5_AGE == "(7) 70 +" ~ "70+"
+    )
+  ) |>
+  mutate(
+    # Converting variables to factors
+    race_recoded = factor(race_recoded, levels = c("White", "Black", "Asian American", "Latino", "AIAN", "NHPI", "Arab/MENA")),
+    age_recoded = factor(age_recoded, levels = c("18-29", "30-39", "40-49", "50-59", "60-69", "70+")),
+    educ = factor(educ, levels = c("No college experience", "Some college experience", "College graduate")),
+    rural = factor(rural, levels = c("Rural", "Urban/suburban")),
+    sex_orientation = factor(sex_orientation, levels = c("Straight", "Queer", "Refused/Don't Know"))
+  )
+
+# Convert individual religion columns to numeric
+for (i in 1:15) {
+  col_name <- paste0("Q58R", i, "_numeric")
+  dataset_new[[col_name]] <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", dataset_new[[paste0("Q58R", i)]]))
+}
+
+# Create a new Religion variable
+dataset_new$Religion <- "None"
+
+# Assign religion based on the numeric values of each Q58R column
+religion_mapping <- c(
+  "Q58R1_numeric" = "Catholic", 
+  "Q58R2_numeric" = "Protestant", 
+  "Q58R3_numeric" = "Other Christian",
+  "Q58R4_numeric" = "Jewish", 
+  "Q58R5_numeric" = "Muslim", 
+  "Q58R6_numeric" = "Hindu", 
+  "Q58R7_numeric" = "Buddhist", 
+  "Q58R8_numeric" = "Mormon/LDS", 
+  "Q58R9_numeric" = "Folk Religion", 
+  "Q58R10_numeric" = "Daoist", 
+  "Q58R11_numeric" = "Shamanism", 
+  "Q58R12_numeric" = "Ancestral Religion", 
+  "Q58R13_numeric" = "Spiritual but not religious", 
+  "Q58R14_numeric" = "Atheist", 
+  "Q58R15_numeric" = "Agnostic"
+)
+
+# Loop through the mapping to assign religion values
+for (col in names(religion_mapping)) {
+  dataset_new$Religion[dataset_new[[col]] == 1] <- religion_mapping[[col]]
+}
+
+# Handle multiple religious affiliations
+dataset_new$Religion[rowSums(dataset_new[, grep("_numeric", names(dataset_new))] == 1) > 1] <- "Multiple Religions"
+
+# Convert Religion to a factor with specific levels
+dataset_new$Religion <- factor(dataset_new$Religion,
+                               levels = c("Catholic", "Protestant", "Other Christian", "Jewish", "Muslim",
+                                          "Hindu", "Buddhist", "Mormon/LDS", "Folk Religion",
+                                          "Daoist", "Shamanism", "Ancestral Religion",
+                                          "Spiritual but not religious", "Atheist", "Agnostic", 
+                                          "Multiple Religions", "None"))
+
+# Remove redundant religion columns
+redundant_cols <- c(
+  paste0("Q58R", 1:15), paste0("Q58R", 1:15, "_numeric")
+)
+
+# Remove redundant columns from the dataset
+dataset_clean <- dataset_new[, !(names(dataset_new) %in% redundant_cols)]
+
+# Take a look at the updated dataset
+head(dataset_clean)
+```
+
+```{r echo=FALSE, results=FALSE}
+# Remove all redundant columns
+redundant_columns <- c("Q629R1", "Q629R2", "Q629R3", "Q629R4", 
+                       "Q629R5", "Q629R6", "Q629R7",
+                       "S2_RACE_PRIME", "S13", "S3", "S5_AGE","S14")
+
+dataset_clean <- dataset_clean[, !(names(dataset_clean) %in% redundant_columns)]
+
+head(dataset_clean)
+```
+
+```{r echo=FALSE, results=FALSE}
+# Rename remaining columns in dataset_clean
+colnames(dataset_clean) <- c(
+  "ImportanceOfStoppingDiscriminationAgainstMinorities",  # Q1R5
+  "Gender",                                               # S3B
+  "TreatedUnfairlyOrDiscriminatedAgainst",                # Q627
+  "DiscriminationImpactOnLifeSatisfaction",              # Q633
+  "PerceptionsOfDiscriminationAgainstWhites",            # Q619_Q626R1
+  "PerceptionsOfDiscriminationAgainstBlacks",            # Q619_Q626R2
+  "PerceptionsOfDiscriminationAgainstAsianAmericans",    # Q619_Q626R3
+  "PerceptionsOfDiscriminationAgainstNativeAmericans",   # Q619_Q626R4
+  "PerceptionsOfDiscriminationAgainstImmigrants",        # Q619_Q626R5
+  "PerceptionsOfDiscriminationAgainstLatinos",           # Q619_Q626R6
+  "PerceptionsOfDiscriminationAgainstGaysAndLesbians",   # Q619_Q626R7
+  "PerceptionsOfDiscriminationAgainstMuslims",           # Q619_Q626R8
+  "Education",                                           # educ
+  "SexOrientation",                                      # sex_orientation
+  "Rural",                                               # rural
+  "Race",                                                # race_recoded
+  "Age",                                                 # age_recoded
+  "Religion"                                             # Religion
+)
+
+# Verify the renamed columns
+colnames(dataset_clean)
+head(dataset_clean)
+```
+
+# Model Building
+
+## Model 1: Main
+
+```{r echo=FALSE, results=FALSE}
+# Regression model
+base_model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ Gender +
+               TreatedUnfairlyOrDiscriminatedAgainst + 
+               DiscriminationImpactOnLifeSatisfaction +
+               PerceptionsOfDiscriminationAgainstWhites + 
+               PerceptionsOfDiscriminationAgainstBlacks +
+               PerceptionsOfDiscriminationAgainstAsianAmericans + 
+               PerceptionsOfDiscriminationAgainstNativeAmericans + 
+               PerceptionsOfDiscriminationAgainstImmigrants + 
+               PerceptionsOfDiscriminationAgainstLatinos + 
+               PerceptionsOfDiscriminationAgainstGaysAndLesbians + 
+               PerceptionsOfDiscriminationAgainstMuslims +
+               Education + 
+                 SexOrientation +
+                 Rural +
+                 Race +
+                 Age, 
+             
+             data = dataset_clean, family = "binomial")
+
+# Check multicollinearity using VIF
+vif(base_model)
+```
+
+## Model 2: Model with interaction term
+
+```{r echo=FALSE, results=FALSE}
+interaction_model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ 
+               TreatedUnfairlyOrDiscriminatedAgainst + 
+               DiscriminationImpactOnLifeSatisfaction +
+               PerceptionsOfDiscriminationAgainstWhites + 
+               PerceptionsOfDiscriminationAgainstBlacks +
+               PerceptionsOfDiscriminationAgainstAsianAmericans + 
+               PerceptionsOfDiscriminationAgainstNativeAmericans + 
+               PerceptionsOfDiscriminationAgainstImmigrants + 
+               PerceptionsOfDiscriminationAgainstLatinos + 
+               PerceptionsOfDiscriminationAgainstGaysAndLesbians + 
+               PerceptionsOfDiscriminationAgainstMuslims +
+               Education + 
+                 SexOrientation +
+                 Rural +
+                 Age + 
+                 Gender * Race,
+               
+             data = dataset_clean, family = "binomial")
+
+# Check multicollinearity using VIF
+vif(interaction_model)
+```
+
+# Selecting the better model
+
+## Calculating model's goodness-of-fit through deviance and chi-square test
+
+```{r}
+anova(base_model, interaction_model, test="Chisq")
+```
+
+# confusion matrix
+
+```{r}
+# Generate predicted probabilities and binary predictions
+predicted_probs <- predict(base_model, type = "response")
+
+# Generate binary predictions with a threshold of 0.5
+predicted_classes <- ifelse(predicted_probs > 0.5, 1, 0)
+
+# Create a confusion matrix
+confusion_matrix <- table(
+  Actual = dataset_clean$ImportanceOfStoppingDiscriminationAgainstMinorities,
+  Predicted = predicted_classes
+)
+print("Confusion Matrix:")
+print(confusion_matrix)
+
+# Calculate metrics from the confusion matrix
+TP <- confusion_matrix[2, 2]  # True Positives
+TN <- confusion_matrix[1, 1]  # True Negatives
+FP <- confusion_matrix[1, 2]  # False Positives
+FN <- confusion_matrix[2, 1]  # False Negatives
+
+# Compute performance metrics
+accuracy <- (TP + TN) / sum(confusion_matrix)
+precision <- TP / (TP + FP)
+recall <- TP / (TP + FN)
+specificity <- TN / (TN + FP)
+f1_score <- 2 * (precision * recall) / (precision + recall)
+
+cat("Metrics:\n")
+cat(sprintf("Accuracy: %.4f\n", accuracy))
+cat(sprintf("Precision: %.4f\n", precision))
+cat(sprintf("Recall (Sensitivity): %.4f\n", recall))
+cat(sprintf("Specificity: %.4f\n", specificity))
+cat(sprintf("F1-Score: %.4f\n", f1_score))
+
+```
+
+The model performs well for the majority class ("Not important") but struggles significantly with the minority class ("Important"), as shown by the low recall and F1-Score.
+
+-   **Imbalance in Recognizing Importance**:
+
+    -   The model has high specificity (94.86%), meaning it effectively identifies respondents who do **not** place high importance on anti-discrimination policies.
+
+    -   However, the low sensitivity (15.63%) shows the model struggles to identify respondents who do place high importance on such policies.
+
+    -   This could suggest a possible imbalance in how different factors (e.g., experiences with racism, demographics) are weighed in the model, potentially requiring better feature selection or adjustments.
+
+-   **Predictive Power of the Model**:
+
+    -   The moderate accuracy (74.48%) suggests the model provides a reasonable prediction of respondents' views, but the low F1-Score (23.97%) indicates that it has difficulty capturing nuanced relationships, especially for respondents who prioritize such policies.
+
+    -   This highlights a need for deeper exploration into how experiences of racism interact with demographic factors to influence policy importance.
+
+# ROC
+
+```{r}
+# ROC Curve
+library(pROC)
+roc_curve <- roc(dataset_clean$ImportanceOfStoppingDiscriminationAgainstMinorities, predicted_probs)
+plot(roc_curve, main = "ROC Curve", col = "blue", lwd = 2)
+auc_value <- auc(roc_curve)
+cat(sprintf("AUC: %.4f\n", auc_value))
+```
+
+The ROC curve confirms that the model has discriminatory power but could be improved, particularly in recognizing minority class cases.
+
+-   **Moderate Discriminatory Power**:
+
+    -   The ROC curve and AUC suggest the model moderately distinguishes between respondents who place high vs. low importance on policies addressing racial discrimination.
+
+    -   This could mean that personal experiences with racism and demographic factors do play a role but may not fully account for the variance in the outcome.
+
+-   **Potential for Model Improvement**:
+
+    -   The curve indicates room for improvement in how the model uses predictors. For example, interactions between demographic factors (e.g., education and race) and personal experiences with racism might enhance predictive accuracy.

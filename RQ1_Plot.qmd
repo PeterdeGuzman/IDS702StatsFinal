@@ -1,0 +1,764 @@
+---
+title: "peter_models"
+format: html
+author: "Peter de Guzman"
+editor: visual
+---
+
+## 
+
+# Loading Packages
+
+```{r}
+library(tidyverse)
+library(ordinal)
+library(car)
+library(brant)
+library(MASS)
+```
+
+# Loading data
+
+```{r}
+load("/Users/jenniferli/Desktop/2020cmps_clean2.RData")
+```
+
+```{r}
+```
+
+```{r}
+summary(dataset_clean)
+```
+
+# Running chi-square tests
+
+```{r}
+# # Create a summary table for all categorical variables
+# variables <- c("Q29", "Q271", "S2_RACE_PRIME", "S3", "S3B", "S5_AGE", "S13", "S14", "S7", "Q21", "S2_M", "Q627", "Q628", "Q629R1", "Religion", "educ", "sex_orientation", "rural", "white", "race_recoded", "age_recoded")
+# 
+# 
+# # Chi-square tests for each variable
+# chi_square_results <- lapply(variables, function(var) {
+#   chisq.test(table(dataset_clean[[var]], dataset_clean$Q29))
+# })
+# 
+# # Print chi-square results
+# names(chi_square_results) <- variables
+# print(chi_square_results)
+```
+
+| Variable | Chi-Sq Test Statistic | Degrees of Freedom (df) | p-value |
+|----|----|----|----|
+| Q271 | 291.49 | 12 | \< 2.2e-16 |
+| S2_RACE_PRIME | 291.12 | 21 | \< 2.2e-16 |
+| S3 | 101.7 | 15 | 6.196e-15 |
+| S3B | 296.35 | 9 | \< 2.2e-16 |
+| S5_AGE | NaN | 18 | NA |
+| S13 | 710.69 | 18 | \< 2.2e-16 |
+| S14 | 196.79 | 12 | \< 2.2e-16 |
+| S7 | 148.62 | 6 | \< 2.2e-16 |
+| Q21 | 1284.1 | 9 | \< 2.2e-16 |
+| S2_M | 6.0327 | 3 | 0.11 |
+| Q627 | 246.82 | 3 | \< 2.2e-16 |
+| Q628 | 9.0318 | 6 | 0.1718 |
+| Q629R1 | 6.9533 | 3 | 0.0734 |
+| Religion | 562.39 | 45 | \< 2.2e-16 |
+| educ | 608.65 | 6 | \< 2.2e-16 |
+| sex_orientation | 55.679 | 6 | 3.379e-10 |
+| rural/urban&suburban | 83.719 | 3 | \< 2.2e-16 |
+| white/non-white | 75.137 | 3 | 3.386e-16 |
+| race_recoded | 276.36 | 18 | \< 2.2e-16 |
+| age_recoded | 396.97 | 15 | \< 2.2e-16 |
+
+## Takeaways from Chi-Square Test
+
+Our outcome variable is Q29 (interest in politics).
+
+There appears to be a significant relationship between the following variables and Q29 (interest in politics):
+
+-   Age (Recoded)
+
+-   Race (Recoded)
+
+-   Gender
+
+-   White or Non-White status
+
+-   Rural or Urban & Suburban status
+
+-   Sexual Orientation
+
+-   Religion
+
+-   Educational Attainment
+
+-   Having experienced prior discrimination (Q627)
+
+-   Political Party ID
+
+-   Nativity (born in US or other)
+
+# Prop Tables
+
+```{r}
+library(janitor)
+tabyl(dataset_clean$Q29)
+tabyl(dataset_clean$Q271)
+
+```
+
+# Fitting OLR Model Using polr()
+
+```{r}
+# library(MASS) # package for model
+# library(caret) # package for confusion matrix
+# 
+# dataset_clean$Q29_reordered  <- factor(dataset_clean$Q29,
+#                             levels = c("(4) Not at all interested in politics",
+#                                      "(3) Not that interested in politics",
+#                                      "(2) Somewhat interested",
+#                                      "(1) Very interested in politics"))
+# 
+# 
+# dataset_clean$Q271_reordered <- factor(dataset_clean$Q271,
+#                             levels = c("(5) Not at all important",
+#                                      "(4) Slightly important",
+#                                      "(3) Moderately important",
+#                                      "(2) Very important",
+#                                      "(1) Extremely important"))
+# 
+# ord_mod <- polr(Q29 ~ Q271_reordered + race_recoded +
+#                   age_recoded +
+#             educ +  # Educational Attainment
+#             S3B + # Gender
+#             Q21, # Party affiliation
+#           data = dataset_clean, Hess=TRUE)
+# 
+# summary(ord_mod)
+# 
+# 
+# pvals <- pnorm(-abs(summary(ord_mod)$coef[,"t value"]))*2
+# ctable <- cbind(summary(ord_mod)$coef,pvals)
+# 
+# ctable
+# 
+# (exp_coefs <- exp(cbind(OR=coef(ord_mod),confint(ord_mod))))
+# 
+# head(ord_mod$fitted.values)
+# head(predict(ord_mod))
+# 
+# confusionMatrix(predict(ord_mod), dataset_clean$Q29, mode="everything")
+
+```
+
+```{r}
+# generate new dataset to create predictions for the models
+# 
+new_dataset <- data.frame(race_recoded=c("White", "Black", "Asian American", "Latino", "AIAN", "NHPI", "Arab/MENA"),
+                          Q271_reordered=c("(5) Not at all important", "(4) Slightly important", "(3) Moderately important", "(2) Very important", "(1) Extremely important", "(4) Slightly important", "(5) Not at all important"),
+                          age_recoded = c("18-29", "30-39", "40-49", "50-59", "60-69", "70+", "18-29"),
+                          S3B = c("(1) Man", "(2) Woman","(3) Non-binary","(4) Something else (Specify)", "(1) Man", "(2) Woman", "(1) Man"),
+                          educ = c("No college experience", "Some college experience", "College graduate", "No college experience", "Some college experience", "College graduate", "College graduate"),
+                          Q21 = c("(1) Republican",  "(2) Democrat","(3) Independent", "(4) Other party", "(1) Republican",  "(2) Democrat",  "(3) Independent"))
+
+
+```
+
+# Fitting OLR with interaction terms
+
+## This is the model we include in the final report.
+
+```{r}
+library(MASS) # package for model
+library(caret) # package for confusion matrix
+
+dataset_clean$Q271_reordered <- factor(dataset_clean$Q271,
+                            levels = c("(5) Not at all important",
+                                     "(4) Slightly important",
+                                     "(3) Moderately important",
+                                     "(2) Very important",
+                                     "(1) Extremely important"))
+dataset_clean$Q29_reordered <- factor(dataset_clean$Q29,
+                            levels = c("(4) Not at all interested in politics",
+                                     "(3) Not that interested in politics",
+                                     "(2) Somewhat interested",
+                                     "(1) Very interested in politics"), ordered=TRUE)
+
+
+ord_mod_interactions <- polr(Q29_reordered ~ Q271_reordered * S3B +
+                               race_recoded +
+                  age_recoded +
+            educ +  # Educational Attainment
+            Q21, # Party affiliation
+          data = dataset_clean, Hess=TRUE)
+
+
+
+summary(ord_mod_interactions)
+
+
+pvals_interact <- pnorm(-abs(summary(ord_mod_interactions)$coef[,"t value"]))*2
+ctable_interact <- cbind(summary(ord_mod_interactions)$coef,pvals_interact)
+
+ctable_interact
+
+(exp_coefs_interact <- exp(cbind(OR=coef(ord_mod_interactions),confint(ord_mod_interactions))))
+
+head(ord_mod_interactions$fitted.values)
+head(predict(ord_mod_interactions))
+
+confusionMatrix(predict(ord_mod_interactions), dataset_clean$Q29, mode="everything")
+
+```
+
+# Testing proportional odds assumption with Brant test
+
+```{r}
+library(brant)
+brant(ord_mod_interactions)
+```
+
+# Summary Table - OLR with Interactions
+
+| Variable | Odds Ratio | 2.5% (Confidence Interval) | 97.5% (Confidence Interval) |
+|------------------|------------------|------------------|------------------|
+| Q271 (4) Slightly important | 0.9672589 | 0.811845068 | 1.1525850 |
+| Q271 (3) Moderately important | 0.9776608 | 0.845556718 | 1.1303745 |
+| Q271 (2) Very important | 1.1952004 | 1.033019394 | 1.3828451 |
+| Q271 (1) Extremely important | 1.6474969 | 1.423670208 | 1.9066091 |
+| S3B(2) Woman | 0.6294256 | 0.540015144 | 0.7336072 |
+| S3B(3) Non-binary | 1.8576658 | 1.002509318 | 3.4617409 |
+| S3B(4) Something else (Specify) | 2.1359493 | 0.377740111 | 13.5124525 |
+| race Black | 0.8676620 | 0.790376010 | 0.9524806 |
+| race Asian American | 0.5945609 | 0.541964870 | 0.6522143 |
+| race Latino | 0.7946622 | 0.575235415 | 0.7848896 |
+| race AIAN | 0.6719204 | 1.27404185 | 1.7384045 |
+| race NHPI | 0.5606006 | 0.458205702 | 0.6860792 |
+| race Arab/MENA | 1.1589043 | 0.899447122 | 1.4956228 |
+| age 30-39 | 1.0310801 | 0.946696738 | 1.0563119 |
+| age 40-49 | 0.9247623 | 0.98549367 | 1.1229868 |
+| age 50-59 | 1.0979487 | 1.000027913 | 1.2054892 |
+| age 60-69 | 1.3238874 | 1.205240800 | 1.4542874 |
+| age 70+ | 1.6896464 | 1.510226543 | 1.8907050 |
+| educSome college experience | 1.5264694 | 1.402573135 | 1.6614197 |
+| educCollege graduate | 2.2337286 | 2.072162224 | 2.4081069 |
+| Q21(2) Democrat | 1.1333513 | 1.045765624 | 1.2282275 |
+| Q21(3) Independent | 0.5806653 | 0.533801211 | 0.6315870 |
+| Q21(4) Other party | 0.2127592 | 0.182654104 | 0.2477198 |
+| Q271 4) Slightly important:S3B(2) Woman | 0.9955364 | 0.782564309 | 1.2663323 |
+| Q271 (3) Moderately important:S3B(2) Woman | 0.9461281 | 0.780040309 | 1.1475378 |
+| Q271 (2) Very important:S3B(2) Woman | 0.9791675 | 0.810674379 | 1.1826356 |
+| Q271 (1) Extremely important:S3B(2) Woman | 0.8114102 | 0.674275440 | 0.9763646 |
+| Q271 (4) Slightly important:S3B(3) Non-binary | 0.6505015 | 0.198565161 | 2.1505278 |
+| Q271 (3) Moderately important:S3B(3) Non-binary | 0.6563254 | 0.249594245 | 1.7277048 |
+| Q271 (2) Very important:S3B(3) Non-binary | 0.5140828 | 0.205132143 | 1.2905898 |
+| Q271 (1) Extremely important:S3B(3) Non-binary | 0.8770903 | 0.354410521 | 2.1835545 |
+| Q271 (4) Slightly important:S3B(4) Something else (Specify) | 0.2279084 | 0.023857021 | 2.0164000 |
+| Q271 (3) Moderately important:S3B(4) Something else (Specify) | 1.7158304 | 0.146865519 | 19.7516328 |
+| Q271 2) Very important:S3B(4) Something else (Specify) | 0.1049752 | 0.006213617 | 1.4210951 |
+| Q271 1) Extremely important:S3B(4) Something else (Specify) | 0.6584933 | 0.079780177 | 4.9850479 |
+
+# Producing odds ratio plot for ordinal model with interactions
+
+```{r}
+odds_ratio_plot <- function(model) {
+  # Get odds ratios and CIs
+  or_data <- exp(cbind(OR=coef(model),confint(model)))
+  
+  # Calculate p-values
+  p_values <- pnorm(-abs(summary(model)$coefficients[,"t value"]))*2
+  
+  # Keep only significant variables
+  sig_indices <- p_values[names(coef(model))] < 0.05
+  or_data_sig <- or_data[sig_indices, ]
+  
+  ggplot() +
+    # Add vertical line at OR = 1
+    geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 0.7) +
+    # Add points and error bars
+    geom_point(aes(x = or_data_sig[,1], 
+                   y = reorder(rownames(or_data_sig), or_data_sig[,1])), 
+              size = 4, color = "blue") +
+    geom_errorbarh(aes(xmin = or_data_sig[,2], 
+                       xmax = or_data_sig[,3],
+                       y = reorder(rownames(or_data_sig), or_data_sig[,1])),
+                   height = 0.3, color = "black") +
+    # Customize theme
+    theme_minimal() +
+    theme(
+      axis.text.y = element_text(size = 6, color = "black"),
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+      axis.title.x = element_text(size = 12, face = "bold"),
+      axis.title.y = element_text(size = 12, face = "bold"),
+      plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+      plot.margin = margin(1, 1, 1, 1, "cm"),
+      legend.text = element_text(size = 8),
+      legend.title = element_text(size = 9)
+    ) +
+    # Add labels
+    labs(
+      title = "Significant Variables with Confidence Intervals (Odds Ratio)",
+      x = "Odds Ratio",
+      y = "Variables"
+    )
+}
+
+# Generate the plot
+odds_ratio_plot(ord_mod_interactions)
+
+```
+
+# Testing plotting function
+
+```{r}
+or_data_test <- exp(cbind(OR=coef(ord_mod_interactions),confint(ord_mod_interactions)))
+  
+  # Calculate p-values
+p_values_test <- pnorm(-abs(summary(ord_mod_interactions)$coefficients[,"t value"]))*2
+  
+  # Keep only significant variables
+sig_indices_test <- p_values_test[names(coef(ord_mod_interactions))] < 0.05
+or_data_sig_test <- or_data_test[sig_indices_test, ]
+
+rename_map <- c(
+    "Q271_reordered(2) Very important" = "Racial Belonging - Very Important",
+    "Q271_reordered(1) Extremely important" = "Racial Belonging - Extremely Important",
+    "S3B(2) Woman" = "Gender - Woman",
+    "S3B(3) Non-binary" = "Gender - Non-binary",
+    "race_recodedBlack" = "Race - Black",
+    "race_recodedAsian American" = "Race - Asian",
+    "race_recodedLatino" = "Race - Latino",
+    "race_recodedAIAN" = "Race - Native", # why use Native instead of AIAN?
+    "race_recodedNHPI" = "Race - NHPI",
+    "age_recoded50-59" = "Age - 50-59",
+    "age_recoded60-69" = "Age - 60-69",
+    "age_recoded70+" = "Age - 70+",
+    "educSome college experience" = "Education - Some College",
+    "educCollege graduate" = "Education - College Graduate",
+    "Q21(2) Democrat" = "Party ID - Democrat",
+    "Q21(3) Independent" = "Party ID - Independent",
+    "Q21(4) Other party" = "Party ID - Other",
+    "Q271_reordered(1) Extremely important:S3B(2) Woman" = "Interaction: Racial Belonging & Gender: Woman"
+  )
+  
+rownames(or_data_sig_test) <- rename_map[rownames(or_data_sig_test)]
+
+or_data_sig_test
+
+```
+
+# Trying to run the plot again but with explicit y-axis Variable labels
+
+```{r}
+odds_ratio_plot_labelled <- function(model) {
+  # Get odds ratios and CIs
+  or_data <- exp(cbind(OR=coef(model),confint(model)))
+  
+  # Calculate p-values
+  p_values <- pnorm(-abs(summary(model)$coefficients[,"t value"]))*2
+  
+  # Keep only significant variables
+  sig_indices <- p_values[names(coef(model))] < 0.05
+  or_data_sig <- or_data[sig_indices, ]
+  
+  rename_map <- c(
+    "Q271_reordered(2) Very important" = "Racial Belonging - Very Important",
+    "Q271_reordered(1) Extremely important" = "Racial Belonging - Extremely Important",
+    "S3B(2) Woman" = "Gender - Woman",
+    "S3B(3) Non-binary" = "Gender - Non-binary",
+    "race_recodedBlack" = "Race - Black",
+    "race_recodedAsian American" = "Race - Asian",
+    "race_recodedLatino" = "Race - Latino",
+    "race_recodedAIAN" = "Race - Native",
+    "race_recodedNHPI" = "Race - NHPI",
+    "age_recoded50-59" = "Age - 50-59",
+    "age_recoded60-69" = "Age - 60-69",
+    "age_recoded70+" = "Age - 70+",
+    "educSome college experience" = "Education - Some College",
+    "educCollege graduate" = "Education - College Graduate",
+    "Q21(2) Democrat" = "Party ID - Democrat",
+    "Q21(3) Independent" = "Party ID - Independent",
+    "Q21(4) Other party" = "Party ID - Other",
+    "Q271_reordered(1) Extremely important:S3B(2) Woman" = "Interaction: Racial Belonging & Gender: Woman"
+  )
+  or_data_sig_renamed <- or_data_sig
+  rownames(or_data_sig_renamed) <- rename_map[rownames(or_data_sig_renamed)]
+
+  
+  
+  ggplot() +
+    # Add vertical line at OR = 1
+    geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 0.7) +
+    # Add points and error bars
+    geom_point(aes(x = or_data_sig_renamed[,1], 
+                   y = reorder(rownames(or_data_sig_renamed), or_data_sig_renamed[,1])), 
+              size = 4, color = "blue") +
+    geom_errorbarh(aes(xmin = or_data_sig[,2], 
+                       xmax = or_data_sig[,3],
+                       y = reorder(rownames(or_data_sig_renamed), or_data_sig_renamed[,1])),
+                   height = 0.3, color = "black") +
+    # Customize theme
+    theme_minimal() +
+    theme(
+      axis.text.y = element_text(size = 6, color = "black"),
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+      axis.title.x = element_text(size = 12, face = "bold"),
+      axis.title.y = element_text(size = 12, face = "bold"),
+      plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+      plot.margin = margin(1, 1, 1, 1, "cm"),
+      legend.text = element_text(size = 8),
+      legend.title = element_text(size = 9)
+    ) +
+    # Add labels
+    labs(
+      title = "Significant Variables with Confidence Intervals",
+      x = "Odds Ratio",
+      y = "Variables"
+    )
+
+}
+
+# Generate the plot
+odds_ratio_plot_labelled(ord_mod_interactions)
+
+```
+
+# Plot with Andrea's following comments all considered:
+
+1.  make sure to use appropriate variable labels.
+2.  I see that you ordered them based on the OR values, but I think it’s confusing to see the responses to the questions in different places. I would still group the questions together, and maybe put them in descending order within each question?
+3.  Also make sure the reference levels are clear so that the reader can appropriately interpret the plot
+
+```{r}
+odds_ratio_plot_labelled <- function(model) {
+  # Get odds ratios and CIs
+  or_data <- exp(cbind(OR=coef(model), confint(model)))
+  
+  # Calculate p-values
+  p_values <- pnorm(-abs(summary(model)$coefficients[,"t value"]))*2
+  
+  # Keep only significant variables
+  sig_indices <- p_values[names(coef(model))] < 0.05
+  or_data_sig <- or_data[sig_indices, ]
+  
+  # Create a mapping for variable names with grouping prefixes
+  rename_map <- c(
+    # Education Group
+    "educCollege graduate" = "1. Education: College Graduate",
+    "educSome college experience" = "1. Education: Some College",
+    
+    # Gender Group
+    "S3B(2) Woman" = "2. Gender: Woman",
+    "S3B(3) Non-binary" = "2. Gender: Non-binary",
+    
+    # Age Group
+    "age_recoded70+" = "3. Age: 70+",
+    "age_recoded60-69" = "3. Age: 60-69",
+    "age_recoded50-59" = "3. Age: 50-59",
+    
+    # Race Group
+    "race_recodedBlack" = "4. Race: Black",
+    "race_recodedAsian American" = "4. Race: Asian",
+    "race_recodedLatino" = "4. Race: Latino",
+    "race_recodedAIAN" = "4. Race: Native",
+    "race_recodedNHPI" = "4. Race: NHPI",
+    
+    # Racial Belonging Group
+    "Q271_reordered(2) Very important" = "5. Racial Belonging: Very Important",
+    "Q271_reordered(1) Extremely important" = "5. Racial Belonging: Extremely Important",
+    
+    # Party ID Group
+    "Q21(2) Democrat" = "6. Party ID: Democrat",
+    "Q21(3) Independent" = "6. Party ID: Independent",
+    "Q21(4) Other party" = "6. Party ID: Other",
+    
+    # Interactions
+    "Q271_reordered(1) Extremely important:S3B(2) Woman" = "7. Interaction: Racial Belonging & Gender: Woman"
+  )
+  
+  or_data_sig_renamed <- or_data_sig
+  rownames(or_data_sig_renamed) <- rename_map[rownames(or_data_sig_renamed)]
+  
+  # Custom sorting function
+  sort_by_group_and_name <- function(x) {
+    # Split the strings to get group numbers and names
+    groups <- as.numeric(sub("^(\\d+)\\..+$", "\\1", x))
+    # Get the part after the colon for sorting within groups
+    names <- sub("^\\d+\\.[^:]+: (.+) \\(ref.+$", "\\1", x)
+    # Create a data frame for sorting
+    sort_df <- data.frame(
+      original = x,
+      group = groups,
+      name = names,
+      stringsAsFactors = FALSE
+    )
+    # Sort by group (ascending) and then by name (descending)
+    sort_df <- sort_df[order(sort_df$group, -xtfrm(sort_df$name)), ]
+    return(sort_df$original)
+  }
+  
+  # Apply the custom sorting
+  sorted_names <- sort_by_group_and_name(rownames(or_data_sig_renamed))
+  or_data_sig_renamed <- or_data_sig_renamed[sorted_names, ]
+  
+  ggplot() +
+    geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 0.7) +
+    geom_point(aes(x = or_data_sig_renamed[,1], 
+                   y = factor(rownames(or_data_sig_renamed), 
+                          levels = rev(rownames(or_data_sig_renamed)))), 
+              size = 4, color = "blue") +
+    geom_errorbarh(aes(xmin = or_data_sig[,2], 
+                       xmax = or_data_sig[,3],
+                       y = factor(rownames(or_data_sig_renamed), 
+                              levels = rev(rownames(or_data_sig_renamed)))),
+                   height = 0.3, color = "black") +
+    theme_minimal() +
+    theme(
+      axis.text.y = element_text(size = 6, color = "black"),
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+      axis.title.x = element_text(size = 12, face = "bold"),
+      axis.title.y = element_text(size = 12, face = "bold"),
+      plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+      plot.margin = margin(1, 1, 1, 1, "cm"),
+      panel.grid.major.y = element_line(color = "gray90"),
+      panel.grid.minor.y = element_blank()
+    ) +
+    labs(
+      title = "Significant Variables with Confidence Intervals",
+      x = "Odds Ratio",
+      y = "Variables"
+    )
+}
+
+# Generate the plot
+odds_ratio_plot_labelled(ord_mod_interactions)
+
+```
+
+Note: Some variable levels are excluded due to filtering for significant variables. To view the reference level for each variable group, please see the below table.
+
+## Reference Levels Table
+
+| Variable Group | Reference Level |
+|----|----|
+| 1\. Education | No college experience |
+| 2\. Gender | Man |
+| 3\. Age | 18-29 years old |
+| 4\. Race | White |
+| 5\. Racial Belonging | Not At All Important |
+| 6\. Party ID | Republican |
+| 7\. Interaction: Racial Belonging & Gender: Woman | Man, Not At All Important |
+
+# Fitting OLR Model with Interaction Term (Q271 \* Q21 Party ID)
+
+```{r}
+
+# library(MASS) # package for model
+# library(caret) # package for confusion matrix
+# 
+# # dataset_clean$Q271_reordered <- factor(dataset_clean$Q271,
+# #                             levels = c("(5) Not at all important",
+# #                                      "(4) Slightly important",
+# #                                      "(3) Moderately important",
+# #                                      "(2) Very important",
+# #                                      "(1) Extremely important"))
+# 
+# ord_mod_interactpoliticalID <- polr(Q29_reordered ~ Q271_reordered * Q21 +
+#                                race_recoded +
+#                   age_recoded +
+#             educ +  # Educational Attainment
+#             S3B, # Gender
+#           data = dataset_clean, Hess=TRUE)
+# 
+# 
+# 
+# summary(ord_mod_interactpoliticalID)
+# 
+# 
+# pvals_interactpoliticalID <- pnorm(-abs(summary(ord_mod_interactpoliticalID)$coef[,"t value"]))*2
+# ctable_interactpoliticalID <- cbind(summary(ord_mod_interactpoliticalID)$coef,pvals_interactpoliticalID)
+# 
+# ctable_interactpoliticalID
+# 
+# (exp_coefs_interact <- exp(cbind(OR=coef(ord_mod_interactpoliticalID),confint(ord_mod_interactpoliticalID))))
+# 
+# head(ord_mod_interactpoliticalID$fitted.values)
+# head(predict(ord_mod_interactpoliticalID))
+# 
+# confusionMatrix(predict(ord_mod_interactpoliticalID), dataset_clean$Q29, mode="everything")
+
+
+```
+
+# Fitting MLR Model
+
+```{r}
+# 
+# # Load packages
+# library(nnet)  # for multinomial logistic regression
+# library(tidyverse)
+# library(car)
+# library(effects)
+# 
+# 
+# # ensure outcome variable is a factor but not ordered
+# dataset_clean$Q29_unordered <- factor(dataset_clean$Q29, ordered = FALSE)
+# dataset_clean$Q271_simple <- as.numeric(dataset_clean$Q271)
+# 
+# # Fit multinomial model
+# m_mult <- multinom(Q29_unordered ~ Q271 * S3B + 
+#                      race_recoded + 
+#                      age_recoded +
+#             educ + # Educational Attainment
+#             Q21, # Party affiliation
+#           data = dataset_clean)
+# 
+# 
+# 
+# # Calculate predicted probabilities of marginal effects
+# # Create sequence of Q271_simple values
+# x_vals <- seq(min(dataset_clean$Q271_simple), max(dataset_clean$Q271_simple), length.out = 100)
+# 
+# # Function to calculate average predicted probabilities
+# get_avg_probs <- function(model, newdata, var_name) {
+#     preds <- predict(model, newdata = newdata, type = "probs")
+#     colMeans(preds)
+# }
+# 
+# # Calculate marginal effects by race
+# races <- unique(dataset_clean$race_recoded)
+# marg_effects <- list()
+# # 
+# for(race in races) {
+#     probs <- matrix(0, nrow = length(x_vals), ncol = length(levels(dataset_clean$Q29_unordered)))
+#     for(i in seq_along(x_vals)) {
+#         temp_data <- dataset_clean
+#         temp_data$Q271_simple <- x_vals[i]
+#         temp_data$race_major <- race
+#         probs[i,] <- get_avg_probs(m_mult, temp_data, "Q271_simple")
+#     }
+#     marg_effects[[race]] <- data.frame(
+#         x = x_vals,
+#         race = race,
+#         prob1 = probs[,1],
+#         prob2 = probs[,2],
+#         prob3 = probs[,3],
+#         prob4 = probs[,4]
+#     )
+# }
+# 
+# # Combine all marginal effects
+# marg_effects_df <- bind_rows(marg_effects)
+# 
+# # Create plots for marginal effects
+# # Reshape data for plotting
+# marg_effects_long <- marg_effects_df %>%
+#     pivot_longer(cols = starts_with("prob"),
+#                 names_to = "outcome",
+#                 values_to = "probability") %>%
+#     mutate(outcome = factor(outcome,
+#                           levels = paste0("prob", 1:4),
+#                           labels = levels(dataset_clean$Q29_unordered)))
+# 
+# # Plot marginal effects
+# p1 <- ggplot(marg_effects_long,
+#              aes(x = x, y = probability, color = outcome)) +
+#     geom_line() +
+#     facet_wrap(~race) +
+#     theme_minimal() +
+#     labs(title = "Marginal Effects of Racial Identity Importance by Race",
+#          x = "Importance of Racial Identity",
+#          y = "Predicted Probability",
+#          color = "Political Interest Level") +
+#     theme(legend.position = "bottom")
+# print(p1)
+# 
+# # Model fit statistics and comparisons
+# print("Model summaries:")
+# print(summary(m_mult))
+# 
+# # Calculate McFadden's R-squared
+# null_model <- multinom(Q29_unordered ~ 1, data = dataset_clean)
+# mcfadden_r2 <- 1 - logLik(m_mult)/logLik(null_model)
+# 
+# print("McFadden's R-squared:")
+# print(mcfadden_r2)
+# 
+# # Classification accuracy
+# pred_class <- predict(m_mult)
+# conf_matrix <- table(pred_class, dataset_clean$Q29_unordered)
+# accuracy <- sum(diag(conf_matrix))/sum(conf_matrix)
+# 
+# print("Classification accuracy:")
+# print(accuracy)
+# print("Confusion Matrix:")
+# print(conf_matrix)
+# # 
+# # Print AIC
+# print(AIC(m_mult))
+# 
+# # Calculate predicted probabilities
+# pred_data <- expand.grid(
+#     Q271 = unique(dataset_clean$Q271),
+#     age_recoded = unique(dataset_clean$age_recoded),
+#     race_recoded = unique(dataset_clean$race_recoded),
+#     educ = unique(dataset_clean$educ),
+#     S3B = unique(dataset_clean$S3B),
+#     Q21 = unique(dataset_clean$Q21)
+# )
+# # 
+# # Get predictions
+# preds <- predict(m_mult, newdata = pred_data, type = "probs")
+# pred_data <- cbind(pred_data, as.data.frame(preds))
+# 
+# # Create separate plots for each outcome level
+# pred_long <- pred_data %>%
+#     pivot_longer(cols = starts_with("("),
+#                 names_to = "interest_level",
+#                 values_to = "probability")
+# 
+# 
+# # Plot for each outcome level
+# p2 <- ggplot(pred_long,
+#              aes(x = Q271, y = probability, color = race_recoded)) +
+#     geom_line() +
+#     facet_wrap(~interest_level) +
+#     theme_minimal() +
+#     labs(title = "Predicted Probabilities by Outcome Level",
+#          x = "Importance of Racial Identity",
+#          y = "Probability",
+#          color = "Race/Ethnicity") +
+#     theme(legend.position = "bottom")
+# print(p2)
+
+
+```
+
+## Interpretation
+
+```{r}
+# generate predictions for the ordinal model and the ordinal model  with interactions
+# predict(ord_mod, new_dataset, type="probs")
+predict(ord_mod_interactions, new_dataset, type="probs")
+
+
+# new_dataset <- data.frame(race_recoded=c("White", "Black", "Asian American", "Latino", "AIAN", "NHPI", "Arab/MENA"),
+#                           Q271=c("(5) Not at all important", "(4) Slightly important", "(3) Moderately important", "(2) Very important", "(1) Extremely important", "(4) Slightly important", "(5) Not at all important"),
+#                           age_recoded = c("18-29", "30-39", "40-49", "50-59", "60-69", "70+", "18-29"),
+#                           S3B = c("(1) Man", "(2) Woman","(3) Non-binary","(4) Something else (Specify)", "(1) Man", "(2) Woman", "(1) Man"),
+#                           educ = c("No college experience", "Some college experience", "College graduate", "No college experience", "Some college experience", "College graduate", "College graduate"),
+#                           Q21 = c("(1) Republican",  "(2) Democrat","(3) Independent", "(4) Other party", "(1) Republican",  "(2) Democrat",  "(3) Independent"))
+
+
+# predict(m_mult, new_dataset, type = "probs")
+```
+
+# Comparing confusion matrix
+
+```{r}
+# Confusion matrix for ordinal model with interactions
+confusionMatrix(predict(ord_mod_interactions), dataset_clean$Q29, mode="everything")
+
+# Confusion matrix for multinomial model
+
+```

@@ -588,7 +588,7 @@ odds_ratio_plot_labelled <- function(model) {
       panel.grid.minor.y = element_blank()
     ) +
     labs(
-      title = "Significant Variables with Confidence Intervals",
+      title = "Odds Ratios (Significant Variables)",
       x = "Odds Ratio",
       y = "Variables"
     )
@@ -658,7 +658,7 @@ ggplot(significant_data, aes(x = `Odds Ratio`, y = Variable)) +
                  height = 0.3, color = "black") +  # Add horizontal error bars
   geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 0.7) +  # Add a vertical reference line at Odds Ratio = 1
   labs(
-    title = "Odds Ratio of Significant Variables",
+    title = "Odds Ratios (Significant Variables)",
     x = "Odds Ratio",
     y = "Variable"
   ) +

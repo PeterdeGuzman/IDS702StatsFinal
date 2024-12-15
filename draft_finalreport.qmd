@@ -1,7 +1,7 @@
 ---
 title: "The Effects of Racial Identity and Discrimination on Political Participation and Political Attitudes"
 author: "Peter de Guzman, Jennifer Li, Nakiyah Dhariwala, Sizhe Chen"
-format: html
+format: pdf
 date: 2024-12-08
 editor: visual
 ---
@@ -197,7 +197,7 @@ dataset_clean_allvars <- dataset_new |>
 # Remove all redundant columns
 redundant_columns <- c("Q629R1", "Q629R2", "Q629R3", "Q629R4", 
                        "Q629R5", "Q629R6", "Q629R7",
-                       "S2_RACE_PRIME", "S13", "S3", "S5_AGE","S14")
+                       "S2_RACE_PRIME", "S13", "S3", "S5_AGE","S14", "Q29", "Q21")
 
 dataset_clean <- dataset_clean_allvars[, !(names(dataset_clean_allvars) %in% redundant_columns)]
 ```
@@ -206,6 +206,7 @@ dataset_clean <- dataset_clean_allvars[, !(names(dataset_clean_allvars) %in% red
 # Rename remaining columns in dataset_clean
 colnames(dataset_clean) <- c(
   "ImportanceOfStoppingDiscriminationAgainstMinorities",  # Q1R5
+  "RacialBelonging",                                      #Q271
   "Gender",                                               # S3B
   "TreatedUnfairlyOrDiscriminatedAgainst",                # Q627
   "DiscriminationImpactOnLifeSatisfaction",              # Q633
@@ -246,8 +247,7 @@ base_model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ Gender +
                  Age, 
              
              data = dataset_clean, family = "binomial")
-```             
-
+```
 
 ```{r echo=FALSE, results=FALSE}
 # Regression Model with interaction term - RQ2
@@ -270,7 +270,6 @@ interaction_model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~
                
              data = dataset_clean, family = "binomial")
 ```
-
 
 ```{r echo=FALSE, results=FALSE}
 
@@ -296,9 +295,6 @@ results_base_model <- data.frame(
 # Display results
 results_base_model
 ```
-
-
-
 
 ```{r echo=FALSE, results=FALSE}
 # creating the analysis table for RQ2
@@ -406,153 +402,6 @@ colnames(analysis_table) <- c("Description", "Odds Ratio", "Lower Confidence Int
 
 ```
 
-
-# ordinal model
-
-
-# ```{r, echo=FALSE, results=FALSE}
-# # data load and cleaning for ordinal regression model
-# required_cols_ord <- c("Q29", # Outcome Variable; interest in politics
-#                    "Q271", # Predictor Variable; importance of race to identity
-#                    "S2_RACE_PRIME", # Race
-#                    "S3", # Orientation
-#                    "S3B", # Gender
-#                    "S5_AGE", # Age Category
-#                    "S13", # Educational Attainment
-#                    "S14", # Community Type
-#                    "S7", # Nativity
-#                    "Q21", # Party ID
-#                    "S2_M", # Multiracial
-#                    
-#                    # Religion-related variables
-#                    "Q58R1",            # Catholic
-#                    "Q58R2",            # Protestant
-#                    "Q58R3",            # Other Christian
-#                    "Q58R4",            # Jewish
-#                    "Q58R5",            # Muslim
-#                    "Q58R6",            # Hindu
-#                    "Q58R7",            # Buddhist
-#                    "Q58R8",            # Mormon/LDS
-#                    "Q58R9",            # Folk Religion
-#                    "Q58R10",           # Daoist
-#                    "Q58R11",           # Shamanism
-#                    "Q58R12",           # Ancestral Religion
-#                    "Q58R13",           # Spiritual but not religious
-#                    "Q58R14",           # Atheist
-#                    "Q58R15",            # Agnostic
-#                    
-#                    # Variables capturing experiences with racism
-#                    "Q627", # Treated unfairly or discriminated against ,
-#                    "Q628", # Location of discrimination
-#                    "Q629R1" # Unfair treatment due to racial background/ethnicity
-#                    )
-#                  
-#                    
-#                    
-# # Create new df
-# data_filtered <- dataset[, required_cols_ord]
-# 
-# # Convert the required columns to factors
-# data_filtered[required_cols] <- lapply(data_filtered[required_cols_ord], as.factor)
-# 
-# # Convert individual religion columns to numeric
-# for (i in 1:15) {
-#   col_name <- paste0("Q58R", i, "_numeric")
-#   data_filtered[[col_name]] <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", data_filtered[[paste0("Q58R", i)]]))
-# }
-# 
-# # Create a new Religion variable
-# data_filtered$Religion <- "None"
-# data_filtered$Religion[data_filtered$Q58R1_numeric == 1] <- "Catholic"
-# data_filtered$Religion[data_filtered$Q58R2_numeric == 1] <- "Protestant"
-# data_filtered$Religion[data_filtered$Q58R3_numeric == 1] <- "Other Christian"
-# data_filtered$Religion[data_filtered$Q58R4_numeric == 1] <- "Jewish"
-# data_filtered$Religion[data_filtered$Q58R5_numeric == 1] <- "Muslim"
-# data_filtered$Religion[data_filtered$Q58R6_numeric == 1] <- "Hindu"
-# data_filtered$Religion[data_filtered$Q58R7_numeric == 1] <- "Buddhist"
-# data_filtered$Religion[data_filtered$Q58R8_numeric == 1] <- "Mormon/LDS"
-# data_filtered$Religion[data_filtered$Q58R9_numeric == 1] <- "Folk Religion"
-# data_filtered$Religion[data_filtered$Q58R10_numeric == 1] <- "Daoist"
-# data_filtered$Religion[data_filtered$Q58R11_numeric == 1] <- "Shamanism"
-# data_filtered$Religion[data_filtered$Q58R12_numeric == 1] <- "Ancestral Religion"
-# data_filtered$Religion[data_filtered$Q58R13_numeric == 1] <- "Spiritual but not religious"
-# data_filtered$Religion[data_filtered$Q58R14_numeric == 1] <- "Atheist"
-# data_filtered$Religion[data_filtered$Q58R15_numeric == 1] <- "Agnostic"
-# 
-# # Convert Religion to a factor
-# data_filtered$Religion <- factor(data_filtered$Religion,
-#                                levels = c("Catholic", "Protestant", "Other Christian", "Jewish", "Muslim",
-#                                           "Hindu", "Buddhist", "Mormon/LDS", "Folk Religion",
-#                                           "Daoist", "Shamanism", "Ancestral Religion",
-#                                           "Spiritual but not religious", "Atheist", "Agnostic", "None"))
-# 
-# # Remove redundant religion columns (Q58R1 to Q58R15 and their numeric versions)
-# redundant_cols <- c(
-#   "Q58R1", "Q58R2", "Q58R3", "Q58R4", "Q58R5", "Q58R6", "Q58R7", "Q58R8", 
-#   "Q58R9", "Q58R10", "Q58R11", "Q58R12", "Q58R13", "Q58R14", "Q58R15",
-#   "Q58R1_numeric", "Q58R2_numeric", "Q58R3_numeric", "Q58R4_numeric", 
-#   "Q58R5_numeric", "Q58R6_numeric", "Q58R7_numeric", "Q58R8_numeric", 
-#   "Q58R9_numeric", "Q58R10_numeric", "Q58R11_numeric", "Q58R12_numeric", 
-#   "Q58R13_numeric", "Q58R14_numeric", "Q58R15_numeric"
-# )
-# 
-# # Remove redundant columns from the dataset
-# dataset_clean_ord <- data_filtered[, !(names(data_filtered) %in% redundant_cols)]
-# 
-# dataset_clean_ord <- dataset_clean_ord %>% mutate(educ = case_when(S13 == "(1) Grades 1-8" ~ "No college experience",
-#                                                            S13 == "(2) Some High School, but did not graduate" ~ "No college experience",
-#                                                            S13 == "(3) High School graduate or GED" ~ "No college experience",
-#                                                            S13 == "(4) Some college" ~ "Some college experience",
-#                                                            S13 == "(5) Associates, 2-year degree" ~ "College graduate",
-#                                                            S13 == "(6) Bachelors, 4-year degree" ~ "College graduate",
-#                                                            S13 == "(7) Post-graduate degree" ~ "College graduate"),
-#                                           sex_orientation = case_when(S3 == "(01) Straight, that is, not gay or lesbian" ~ "Straight",
-#                                                                      S3 == "(02) Gay or lesbian" ~ "Queer",
-#                                                                      S3 == "(03) Bisexual" ~ "Queer",
-#                                                                      S3 == "(04) Something else (Specify)" ~ "Queer",
-#                                                                      S3 == "(88) Refused" ~ "Refused/Don't Know",
-#                                                                      S3 == "(99) I don" ~ "Refused/Don't Know"),
-#                                           rural = case_when(S14 == "(1) Large urban area" ~ "Urban/suburban",
-#                                                             S14 == "(2) Large suburb near large city" ~ "Urban/suburban",
-#                                                             S14 == "(3) Small suburb near small town or city" ~ "Urban/suburban",
-#                                                             S14 == "(4) Small town or small city" ~ "Urban/suburban",
-#                                                             S14 == "(5) Rural area" ~ "Rural"),
-#                                           white = case_when(S2_RACE_PRIME == "(1) White" ~ "White", 
-#                                                             S2_RACE_PRIME == "(2) Hispanic or Latino" ~ "Non-White",
-#                                                             S2_RACE_PRIME == "(3) Black or African American" ~ "Non-White",
-#                                                             S2_RACE_PRIME == "(4) Asian American" ~ "Non-White",
-#                                                             S2_RACE_PRIME == "(5) American Indian/Native American" ~ "Non-White",
-#                                                             S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Non-White",
-#                                                             S2_RACE_PRIME == "(7) Native Hawaiian" ~ "Non-White",
-#                                                             S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "Non-White"),
-#                                           race_recoded = case_when(S2_RACE_PRIME == "(1) White" ~ "White",
-#                                                                    S2_RACE_PRIME == "(2) Hispanic or Latino" ~ "Latino",
-#                                                                    S2_RACE_PRIME == "(3) Black or African American" ~ "Black",
-#                                                                    S2_RACE_PRIME == "(4) Asian American" ~ "Asian American",
-#                                                                    S2_RACE_PRIME == "(5) American Indian/Native American" ~ "AIAN",
-#                                                                    S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Arab/MENA",
-#                                                                    S2_RACE_PRIME == "(7) Native Hawaiian" ~ "NHPI",
-#                                                                    S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "NHPI"),
-#                                           age_recoded = case_when(S5_AGE == "(1) 16-17" ~ "16-17",
-#                                                                   S5_AGE == "(2) 18-29" ~ "18-29",
-#                                                                   S5_AGE == "(3) 30-39" ~ "30-39",
-#                                                                   S5_AGE == "(4) 40-49" ~ "40-49",
-#                                                                   S5_AGE == "(5) 50-59" ~ "50-59",
-#                                                                   S5_AGE == "(6) 60-69" ~ "60-69",
-#                                                                   S5_AGE == "(7) 70 +" ~ "70+"))
-# 
-# dataset_clean_ord <- dataset_clean_ord %>% mutate(race_recoded = factor(dataset_clean_ord$race_recoded, levels = c("White", "Black", "Asian American", "Latino", "AIAN", "NHPI", "Arab/MENA")),
-#                                          age_recoded = factor(dataset_clean_ord$age_recoded, levels = c("18-29", "30-39", "40-49", "50-59", "60-69", "70+")),
-#                                          educ = factor(dataset_clean_ord$educ, levels = c("No college experience", "Some college experience", "College graduate")),
-#                                          white = factor(dataset_clean_ord$white, levels = c("White", "Non-White")),
-#                                          rural = factor(dataset_clean_ord$rural, levels= c("Rural", "Urban/suburban")),
-#                                          sex_orientation = factor(dataset_clean_ord$sex_orientation, levels = c("Straight", "Queer", "Refused/Don't Know")))
-# 
-# 
-# ```
-
-
-
 # Abstract
 
 Following the Immigration and Nationality Act of 1965, which allowed for increased immigration into the United States, the United States has become increasingly racially and ethnically diverse. However, studies of political participation and public opinion have often failed to include large samples of racial and ethnic minority Americans, limiting researchers from drawing conclusions on the attitudes of these groups. Using survey data from the 2020 Collaborative Multi-Racial Post-Election Survey, which includes oversamples of racial and ethnic minority populations in the U.S., we investigate the impact of racial identity and racism on political participation and public opinion. First, we analyze whether valuing belonging in a racial group can influence a respondent’s interest in politics. Then, we analyze how personal experiences with racism may influence how respondents value policies aimed at addressing racial and ethnic discrimination. Our findings suggest that racial group belonging is not associated with higher odds  of increased political interest, while gender identity, racial identity, and party affiliation may be associated with higher levels of political interest. Additionally, gender identity, racial identity, and personal experiences with discrimination may be associated with higher odds of increased levels of support for anti-discrimination policies.
@@ -601,16 +450,166 @@ For the first research question, the outcome variable, interest in participating
 | Not at all interested in politics | 1,984  | 11%                        |
 | Total                             | 17,545 | 100%                       |
 
-The model also included the predictor variable regarding the importance of belonging to a racial group to one’s identity, a categorical variable that captured responses to the question: “How important is being [RACIAL GROUP] to your identity?”, with response options “Extremely important”, “Very important”, “Moderately important”, “Slightly important”, and “Not at all important”. The respondent’s identified racial group was brought into the survey question based on their prior survey responses. Over half (56%) of respondents reported that being a member of their racial group was very or extremely important to their identity. Only 23% of respondents said that being a member of their racial group was slightly or not at all important to their identity. 
+The model also included the predictor variable regarding the importance of belonging to a racial group to one’s identity, a categorical variable that captured responses to the question: “How important is being \[RACIAL GROUP\] to your identity?”, with response options “Extremely important”, “Very important”, “Moderately important”, “Slightly important”, and “Not at all important”. The respondent’s identified racial group was brought into the survey question based on their prior survey responses. Over half (56%) of respondents reported that being a member of their racial group was very or extremely important to their identity. Only 23% of respondents said that being a member of their racial group was slightly or not at all important to their identity.
 
 The model also included multiple predictor variables that control for the impact of other aspects of a respondent’s identity, socioeconomic status, and political preferences These included demographic variables such as the primary race reported by a respondent, their age, and gender, as well as a respondent’s reported level of educational attainment and political party affiliation. Finally, the model included an interaction term between gender and the importance a respondent placed in belonging to their racial group to investigate whether the relationship between racial belonging and political interest differs depending on gender. This interaction term allows us to evaluate if the effect of racial belonging on political interest is different for males, females, non-binary respondents, or respondents who specified a different gender identity.
 
+```{r, echo=FALSE, results=FALSE}
+dataset_clean_allvars$Q271_reordered <- factor(dataset_clean_allvars$Q271,
+                            levels = c("(5) Not at all important",
+                                     "(4) Slightly important",
+                                     "(3) Moderately important",
+                                     "(2) Very important",
+                                     "(1) Extremely important"))
+dataset_clean_allvars$Q29_reordered <- factor(dataset_clean_allvars$Q29,
+                            levels = c("(4) Not at all interested in politics",
+                                     "(3) Not that interested in politics",
+                                     "(2) Somewhat interested",
+                                     "(1) Very interested in politics"), ordered=TRUE)
 
-(Insert Odds Ratio Plot for RQ1)
+
+ord_mod_interactions <- polr(Q29_reordered ~ Q271_reordered * S3B +
+                               race_recoded +
+                  age_recoded +
+            educ +  # Educational Attainment
+            Q21, # Party affiliation
+          data = dataset_clean_allvars, Hess=TRUE)
+
+
+
+summary(ord_mod_interactions)
+
+
+pvals_interact <- pnorm(-abs(summary(ord_mod_interactions)$coef[,"t value"]))*2
+ctable_interact <- cbind(summary(ord_mod_interactions)$coef,pvals_interact)
+
+ctable_interact
+
+(exp_coefs_interact <- exp(cbind(OR=coef(ord_mod_interactions),confint(ord_mod_interactions))))
+
+head(ord_mod_interactions$fitted.values)
+head(predict(ord_mod_interactions))
+
+confusionMatrix(predict(ord_mod_interactions), dataset_clean_allvars$Q29, mode="everything")
+
+
+brant(ord_mod_interactions)
+
+```
+
+```{r, echo=FALSE}
+odds_ratio_plot_labelled <- function(model) {
+  # Get odds ratios and CIs
+  or_data <- exp(cbind(OR=coef(model), confint(model)))
+  
+  # Calculate p-values
+  p_values <- pnorm(-abs(summary(model)$coefficients[,"t value"]))*2
+  
+  # Keep only significant variables
+  sig_indices <- p_values[names(coef(model))] < 0.05
+  or_data_sig <- or_data[sig_indices, ]
+  
+  # Create a mapping for variable names with grouping prefixes
+  rename_map <- c(
+    # Education Group
+    "educCollege graduate" = "1. Education: College Graduate",
+    "educSome college experience" = "1. Education: Some College",
+    
+    # Gender Group
+    "S3B(2) Woman" = "2. Gender: Woman",
+    "S3B(3) Non-binary" = "2. Gender: Non-binary",
+    
+    # Age Group
+    "age_recoded70+" = "3. Age: 70+",
+    "age_recoded60-69" = "3. Age: 60-69",
+    "age_recoded50-59" = "3. Age: 50-59",
+    
+    # Race Group
+    "race_recodedBlack" = "4. Race: Black",
+    "race_recodedAsian American" = "4. Race: Asian",
+    "race_recodedLatino" = "4. Race: Latino",
+    "race_recodedAIAN" = "4. Race: Native",
+    "race_recodedNHPI" = "4. Race: NHPI",
+    
+    # Racial Belonging Group
+    "Q271_reordered(2) Very important" = "5. Racial Belonging: Very Important",
+    "Q271_reordered(1) Extremely important" = "5. Racial Belonging: Extremely Important",
+    
+    # Party ID Group
+    "Q21(2) Democrat" = "6. Party ID: Democrat",
+    "Q21(3) Independent" = "6. Party ID: Independent",
+    "Q21(4) Other party" = "6. Party ID: Other",
+    
+    # Interactions
+    "Q271_reordered(1) Extremely important:S3B(2) Woman" = "7. Interaction: Racial Belonging & Gender: Woman"
+  )
+  
+  # Create a data frame for plotting
+  plot_data <- data.frame(
+    name = rename_map[rownames(or_data_sig)],
+    or = or_data_sig[,1],
+    ci_lower = or_data_sig[,2],
+    ci_upper = or_data_sig[,3],
+    stringsAsFactors = FALSE
+  )
+  
+  # Custom sorting function
+  sort_by_group_and_name <- function(x) {
+    groups <- as.numeric(sub("^(\\d+)\\..+$", "\\1", x))
+    names <- sub("^\\d+\\.[^:]+: (.+)$", "\\1", x)
+    sort_df <- data.frame(
+      original = x,
+      group = groups,
+      name = names,
+      stringsAsFactors = FALSE
+    )
+    sort_df <- sort_df[order(sort_df$group, -xtfrm(sort_df$name)), ]
+    return(sort_df$original)
+  }
+  
+  # Sort the data
+  plot_data$name <- factor(plot_data$name,
+                          levels = rev(sort_by_group_and_name(plot_data$name)))
+  
+  # Create plot
+  ggplot(plot_data, aes(y = name)) +
+    geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 0.7) +
+    geom_point(aes(x = or), size = 4, color = "blue") +
+    geom_errorbarh(aes(xmin = ci_lower, xmax = ci_upper), height = 0.3, color = "black") +
+    theme_minimal() +
+    theme(
+      axis.text.y = element_text(size = 6, color = "black"),
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+      axis.title.x = element_text(size = 12, face = "bold"),
+      axis.title.y = element_text(size = 12, face = "bold"),
+      plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+      plot.margin = margin(1, 1, 1, 1, "cm"),
+      panel.grid.major.y = element_line(color = "gray90"),
+      panel.grid.minor.y = element_blank()
+    ) +
+    labs(
+      title = "Significant Variables with Confidence Intervals",
+      x = "Odds Ratio",
+      y = "Variables"
+    )
+}
+
+# Generate the plot
+odds_ratio_plot_labelled(ord_mod_interactions)
+
+```
 
 Note: Some variable levels are excluded due to filtering for significant variables. To view the reference level for each variable group, please see the below table.
 
-INSERT TABLE
+| Variable Group | Reference Level |
+|------------------------------------|------------------------------------|
+| 1\. Education | No college experience |
+| 2\. Gender | Man |
+| 3\. Age | 18-29 years old |
+| 4\. Race | White |
+| 5\. Racial Belonging | Not At All Important |
+| 6\. Party ID | Republican |
+| 7\. Interaction: Racial Belonging & Gender: Woman | Man, Not At All Important |
 
 Controlling for age, gender identity, educational attainment, and party affiliation, all racial groups in our sample reported lower odds of reporting a higher level of interest in politics compared to white respondents, except for Arab, Middle East & North African (MENA) respondents. However, the effects for respondents of Arab/MENA heritage was not statistically significant. The odds of Black respondents being in a higher level of interest in politics were 0.87 times as high as White respondents (CI: 0.79-0.95). The odds of Latino respondents being in a higher level of interest in politics were 0.79 times as high as White respondents (CI: 0.72-0.87). These effects were even more pronounced for smaller racial/ethnic minority groups. Asian Americans’ odds of reporting a higher level of interest in politics were 0.60 times as high as that of White respondents (CI: 0.54-0.65).
 
@@ -620,33 +619,29 @@ Respondents in older age groups had odds of being in a higher level of interest 
 
 Regarding gender differences, women showed significantly lower odds of political interest compared to men (OR: 0.63, CI: 0.54-0.73). The reference group for the interaction term of the importance of racial belonging and gender identity is male respondents who reported that their belonging to a specific racial group is not at all important to their identity. Respondents who said that their belonging to a specific racial group was “Very important” to their racial identity had 1.19 times higher odds of reporting a higher level of interest in politics than this reference group (CI: 1.03-1.38). Respondents who said that their belonging to a specific racial group was “Extremely important” to their racial identity had 1.64 times higher odds than this reference group (CI: 1.42-1.90).
 
-To determine if the ordinal logistic regression model violated the proportional odds assumption, we produced a confusion matrix. The confusion matrix revealed that the model had a low level of precision, with an accuracy value of 0.4503. The model’s accuracy is slightly higher than the No Information Rate (0.4339), indicating that the model does not perform much better than a random guess based on the distribution of respondents in various levels of the outcome variable, interest in politics. 
+To determine if the ordinal logistic regression model violated the proportional odds assumption, we produced a confusion matrix. The confusion matrix revealed that the model had a low level of precision, with an accuracy value of 0.4503. The model’s accuracy is slightly higher than the No Information Rate (0.4339), indicating that the model does not perform much better than a random guess based on the distribution of respondents in various levels of the outcome variable, interest in politics.
 
 INSERT TABLE
 
-The values for the sensitivity and specificity of the model for each class are present in the above table. The sensitivity of the model was low (below 0.20) for the levels “Very interested in politics”, “Not that interested in politics”, and “Not at all interested in politics.”.  The only level with a high sensitivity value was the response option of being “Somewhat interested” in politics, which had an associated sensitivity of 0.90. These results indicate that the model struggled to correctly identify respondents who were “Very interested”, “Not that interested”, or “Not at all interested” in politics. The specificity of the model was high for each level, except for the response option of being “Somewhat interested” in politics (Specificity: 0.16), indicating that the model classified a high rate of false positives for this level, and it was potentially overly biased to predicting that respondents were “Somewhat interested” in politics. 
-We also produced a confusion matrix for a multinomial model with the same predictor variables. The confusion matrices were very similar, providing evidence that there is not a sizable difference in performance between the ordinal model and the multinomial model. In addition, we conducted a Brant test. The Brant test result indicated that there is not strong evidence that the proportional odds assumption was violated.
-
+The values for the sensitivity and specificity of the model for each class are present in the above table. The sensitivity of the model was low (below 0.20) for the levels “Very interested in politics”, “Not that interested in politics”, and “Not at all interested in politics.”. The only level with a high sensitivity value was the response option of being “Somewhat interested” in politics, which had an associated sensitivity of 0.90. These results indicate that the model struggled to correctly identify respondents who were “Very interested”, “Not that interested”, or “Not at all interested” in politics. The specificity of the model was high for each level, except for the response option of being “Somewhat interested” in politics (Specificity: 0.16), indicating that the model classified a high rate of false positives for this level, and it was potentially overly biased to predicting that respondents were “Somewhat interested” in politics. We also produced a confusion matrix for a multinomial model with the same predictor variables. The confusion matrices were very similar, providing evidence that there is not a sizable difference in performance between the ordinal model and the multinomial model. In addition, we conducted a Brant test. The Brant test result indicated that there is not strong evidence that the proportional odds assumption was violated.
 
 ### Research Question 2:
 
 For the second research question, the outcome variable ‘Importance placed on stopping discrimination against racial/ethnic minorities’ was modeled using binomial logistic regression. Despite the skewed distribution of the dependent variable—74.25% of respondents considered it "Not Important"—logistic regression is robust to such imbalances.
 
-To examine factors influencing the importance of anti-discrimination policies, the model included predictors like personal experiences with racism (measured via ‘Unfair treatment or discrimination’ and its impact on life satisfaction), alongside demographic variables such as primary race, sexual orientation, gender, age, education, and community type. Variables Q629R1–Q629R7, which captured specific experiences of unfair treatment (e.g., due to race or gender), were excluded due to substantial missing data (>52%). However, this was justified since the broader question on ‘unfair treatment or discrimination’ retained the key essence of experiences with racism.
+To examine factors influencing the importance of anti-discrimination policies, the model included predictors like personal experiences with racism (measured via ‘Unfair treatment or discrimination’ and its impact on life satisfaction), alongside demographic variables such as primary race, sexual orientation, gender, age, education, and community type. Variables Q629R1–Q629R7, which captured specific experiences of unfair treatment (e.g., due to race or gender), were excluded due to substantial missing data (\>52%). However, this was justified since the broader question on ‘unfair treatment or discrimination’ retained the key essence of experiences with racism.
 
 To investigate the factors influencing the importance respondents placed on anti-discrimination policies, we developed two regression models. The first, termed the "base model," excluded interaction terms. The second, the "interaction model," included an interaction term between ‘race’ and ‘gender’ to explore the principles of intersectionality theory.
 
 We assessed multicollinearity in both models by calculating the normalized Variance Inflation Factor (VIF) values. In all cases, the VIF values (APPENDIX TABLE have made a vif at the end of the R code) were consistently below 2, indicating minimal correlation among predictors, suggesting that both models are robust and not significantly affected by multicollinearity.
 
-To further assess the goodness-of-fit for the two models, a chi-square test was conducted with their residual degrees of freedom and deviance for were as follows:
--   Base Model: Residual Degrees of Freedom = 17,487, Residual Deviance = 17,934
--   Interaction Model: Residual Degrees of Freedom = 17,469, Residual Deviance = 17,913
+To further assess the goodness-of-fit for the two models, a chi-square test was conducted with their residual degrees of freedom and deviance for were as follows: - Base Model: Residual Degrees of Freedom = 17,487, Residual Deviance = 17,934 - Interaction Model: Residual Degrees of Freedom = 17,469, Residual Deviance = 17,913
 
 The difference in deviance between the two models was 21.145 with 18 degrees of freedom, indicating the interaction model to be slightly superior. However, the p-value of 0.2722 exceeded the 0.05 significance level, suggesting that including the interaction term did not significantly improve the model fit. Consequently, the base model was selected as it was more parsimonious with comparable explanatory power.
 
-The findings from the base model revealed that personal experiences with discrimination and certain demographic factors significantly influence the importance respondents place on policies aimed at addressing racial and ethnic discrimination. 
+The findings from the base model revealed that personal experiences with discrimination and certain demographic factors significantly influence the importance respondents place on policies aimed at addressing racial and ethnic discrimination.
 
-```{r}
+```{r, echo=FALSE}
 
 # Filter for significant variables (p-value < 0.05)
 significant_data <- analysis_table[analysis_table$`P-Value` < 0.05, ]
@@ -686,90 +681,77 @@ ggplot(significant_data, aes(x = `Odds Ratio`, y = Variable)) +
 
 As shown in the figure above, gender and race were the most consistent and influential predictors. Women had 1.25 times higher odds of prioritizing anti-discrimination policies than men, while Black respondents had 3.53 times higher odds than White respondents. Latino and Asian American respondents had 1.74 and 2.15 times higher odds, respectively, to emphasize such policies compared to their White counterparts. These results underscore the significance of addressing the unique experiences of marginalized groups, whose direct experiences with racism may shape their policy attitudes.
 
-Additionally, individuals who perceive higher levels of discrimination against racial or ethnic groups tend to prioritize anti-discrimination policies. For example, those who believed there was "a little" discrimination against Blacks were 45% less likely to prioritize these policies compared to those who saw "a lot" of discrimination, demonstrating that personal perceptions of racial injustice are key in shaping views on anti-discrimination measures.
-In contrast, education and sexual orientation did not have a statistically significant impact on prioritizing anti-discrimination policies. This reflects that, in this model, personal experiences of discrimination and perceptions of racial inequality have a more direct effect on attitudes toward such policies. While education and sexual orientation may influence political views in other contexts, they seem less relevant to attitudes on racial discrimination. The lack of significance for these variables may indicate that perceptions of racial or ethnic discrimination are stronger motivators for supporting anti-discrimination policies than other demographic factors.
+Additionally, individuals who perceive higher levels of discrimination against racial or ethnic groups tend to prioritize anti-discrimination policies. For example, those who believed there was "a little" discrimination against Blacks were 45% less likely to prioritize these policies compared to those who saw "a lot" of discrimination, demonstrating that personal perceptions of racial injustice are key in shaping views on anti-discrimination measures. In contrast, education and sexual orientation did not have a statistically significant impact on prioritizing anti-discrimination policies. This reflects that, in this model, personal experiences of discrimination and perceptions of racial inequality have a more direct effect on attitudes toward such policies. While education and sexual orientation may influence political views in other contexts, they seem less relevant to attitudes on racial discrimination. The lack of significance for these variables may indicate that perceptions of racial or ethnic discrimination are stronger motivators for supporting anti-discrimination policies than other demographic factors.
 
 The base model's evaluation (as shown in Table MODEL) provides insights into how personal experiences with discrimination and demographic factors influence the prioritization of anti-discrimination policies. The model achieved an overall accuracy of 74.48%, which closely aligns with the No Information Rate (NIR) of 74.25%, indicating that its performance is not significantly better than predicting the majority class.
 
 From the confusion matrix in Table CONFUSION, it is evident that the model performs well in identifying respondents who did not prioritize anti-discrimination policies ("Not Important"), as reflected by its high specificity of 94.89%., However, it struggled with the sensitivity (recall) for the "Important" class, which was only 15.63%. This low sensitivity indicates that the model missed a large proportion of respondents who do prioritize these policies. Precision for the "Important" class was moderate at 51.46%, but the F1 score of 0.2397 highlights poor overall performance in identifying the minority class. The model's AUC (Area Under the Curve) value (see Fig. 2) of 0.72 suggests that it has a moderate ability to discriminate between the two classes, though it still falls short of ideal performance.
 
-The balanced accuracy was 55.26%, reflecting the model’s challenges in handling class imbalance. Despite achieving statistical significance with McNemar’s test (p-value < 2e-16), the model’s predictions deviate considerably from the true data.
-In conclusion, while the model effectively identifies respondents who do not prioritize anti-discrimination policies, it performs poorly in predicting those who do. This imbalance signals the need for improvement in predicting the minority class.
-
+The balanced accuracy was 55.26%, reflecting the model’s challenges in handling class imbalance. Despite achieving statistical significance with McNemar’s test (p-value \< 2e-16), the model’s predictions deviate considerably from the true data. In conclusion, while the model effectively identifies respondents who do not prioritize anti-discrimination policies, it performs poorly in predicting those who do. This imbalance signals the need for improvement in predicting the minority class.
 
 # Conclusion
 
 In this analysis, we investigated whether valuing belonging in a racial group can influence a respondent’s interest in politics. We found that the higher levels of importance an individual placed in belonging to their specific racial group (reporting that belonging to their group was “Very important” or “Extremely important”) had a significant positive effect on their interest in politics when compared to male respondents who did not place a high level of importance on belonging to their specific racial group. Further research is needed to understand how an individual’s racial belonging can impact their political participation while controlling for other demographic characteristics.
 
-Following the resource model of participation, age and increases in educational attainment appeared to be associated with higher odds of reporting a higher level of interest in politics. The most significant positive predictors of increased levels of interest in politics were an individual’s age and level of educational attainment. In particular, individuals who graduated from college had much higher odds of reporting a higher level of interest in politics than individuals with no college experience. This follows popular findings that educational attainment can lead to increases in political participation [8], and that older Americans vote at higher rates than Americans ages 18-29 years old [9]. 
+Following the resource model of participation, age and increases in educational attainment appeared to be associated with higher odds of reporting a higher level of interest in politics. The most significant positive predictors of increased levels of interest in politics were an individual’s age and level of educational attainment. In particular, individuals who graduated from college had much higher odds of reporting a higher level of interest in politics than individuals with no college experience. This follows popular findings that educational attainment can lead to increases in political participation \[8\], and that older Americans vote at higher rates than Americans ages 18-29 years old \[9\].
 
 For our second question, we analyzed how personal experiences with racism influence respondents' prioritization of policies addressing racial and ethnic discrimination. Our findings highlight the significant impact of race, gender, and lived experiences with discrimination, as well as the critical role of perceptions of racism against various groups in shaping public attitudes. These results underscore the complex social dynamics that drive policy preferences and provide valuable insights for designing targeted advocacy and policy efforts to address the unique experiences and needs of marginalized communities.
 
-Despite the value of this survey’s oversamples of racial and ethnic minority communities, some limitations were present in our study. For the ordinal logistic regression, we used educational attainment as a proxy for socioeconomic status. This is a commonly used proxy measure in behavioral and social sciences [10]. Further research on the influence of socioeconomic status of political participation for racial/ethnic minorities and the use of other measures such as household income or wealth would help us understand if the aforementioned resource model of participation is indeed generalizable to other groups in the American electorate. 
-The effect of race on political interest appeared to be more pronounced for members of very small racial/ethnic minority groups in our analysis such as Asian Americans, Native Americans, Native Hawaiians and Pacific Islanders. Both models had low specificity, suggesting that they struggled to correctly identify cases where respondents had low levels of political interest or respondents who considered anti-discrimination policies to be important. Similarly, in our second research question, while the model effectively identified respondents who do not prioritize anti-discrimination policies, it struggled to predict those who do. This imbalance underscores the challenges of accurately modeling the minority class—respondents who view anti-discrimination policies as important—and highlights the need for more nuanced approaches to capture these perspectives.
+Despite the value of this survey’s oversamples of racial and ethnic minority communities, some limitations were present in our study. For the ordinal logistic regression, we used educational attainment as a proxy for socioeconomic status. This is a commonly used proxy measure in behavioral and social sciences \[10\]. Further research on the influence of socioeconomic status of political participation for racial/ethnic minorities and the use of other measures such as household income or wealth would help us understand if the aforementioned resource model of participation is indeed generalizable to other groups in the American electorate. The effect of race on political interest appeared to be more pronounced for members of very small racial/ethnic minority groups in our analysis such as Asian Americans, Native Americans, Native Hawaiians and Pacific Islanders. Both models had low specificity, suggesting that they struggled to correctly identify cases where respondents had low levels of political interest or respondents who considered anti-discrimination policies to be important. Similarly, in our second research question, while the model effectively identified respondents who do not prioritize anti-discrimination policies, it struggled to predict those who do. This imbalance underscores the challenges of accurately modeling the minority class—respondents who view anti-discrimination policies as important—and highlights the need for more nuanced approaches to capture these perspectives.
 
 Overall, these challenges and opportunities highlight the importance of disaggregated data and further research in partnership with small racial and ethnic minority communities within the United States. Future work on political participation and public opinion among racial and ethnic minorities could support researchers, policymakers, and advocates in designing more inclusive policies and interventions. Additionally, incorporating qualitative methodologies, such as interviews or community-based participatory research, could provide richer context and amplify the voices of underrepresented communities. Longitudinal studies could also complement these efforts, capturing changes over time and offering deeper insights into the lived experiences of marginalized communities. By addressing these gaps, future research can better capture the diverse and intersectional realities of minority groups and contribute to more effective advocacy and policy efforts.
 
+\newpage 
+
 # References
 
-1.    Noe-Bustamante, A. B., Christine Tamir, Lauren Mora and Luis. (2020, August 20). Facts on U.S. immigrants, 2018. Pew Research Center. https://www.pewresearch.org/race-and-ethnicity/2020/08/20/facts-on-u-s-immigrants/
-2.    Jones, N., Marks, R., Ramirez, R., & Rios-Vargas, M. (2021, August 12). Improved Race and Ethnicity Measures Reveal U.S. Population Is Much More Multiracial. The United States Census Bureau. https://www.census.gov/library/stories/2021/08/improved-race-ethnicity-measures-reveal-united-states-population-much-more-multiracial.html
-3.    Brady, H. E., Verba, S., & Schlozman, K. L. (1995). Beyond Ses: A Resource Model of Political Participation. The American Political Science Review, 89(2), 271–294. https://doi.org/10.2307/2082425
-4.    Leighley, J. E. (2021). Strength in Numbers? Princeton University Press.
-5.    Besco, R., Garcia-Rios, S., Lagodny, J., Lajevardi, N., Oskooii, K., & Tolley, E. (2022). Fight not flight: The effects of explicit racism on minority political engagement. Electoral Studies, 80, 102515. https://doi.org/10.1016/j.electstud.2022.102515
-6.    Wood, Z. J., & John-Henderson, N. A. (2024). Perceived discrimination, political efficacy, and political participation in American Indian adults. Frontiers in Political Science, 6. https://doi.org/10.3389/fpos.2024.1328521
-7.    Frasure, Lorrie, Wong, Janelle, Vargas, Edward, and Barreto, Matt. Collaborative Multi-racial Post-election Survey (CMPS), United States, 2020. Inter-university Consortium for Political and Social Research [distributor], 2024-06-11. https://doi.org/10.3886/ICPSR39096.v1
-8.    Kim, Y. (2023). Absolutely Relative: How Education Shapes Voter Turnout in the United States. Social Indicators Research, 168(1-3), 447–469. https://doi.org/10.1007/s11205-023-03146-1
-9.    McDonald, M. (n.d.). Voter Turnout Demographics [Review of Voter Turnout Demographics]. U.S. Elections Project. Retrieved December 13, 2024, from https://www.electproject.org/election-data/voter-turnout-demographics
-10.   Oakes, M. (n.d.). Measuring Socioeconomic Status 1. Learning Objectives. https://obssr.od.nih.gov/sites/obssr/files/Measuring-Socioeconomic-Status.pdf
+1.  Noe-Bustamante, A. B., Christine Tamir, Lauren Mora and Luis. (2020, August 20). Facts on U.S. immigrants, 2018. Pew Research Center. https://www.pewresearch.org/race-and-ethnicity/2020/08/20/facts-on-u-s-immigrants/
+2.  Jones, N., Marks, R., Ramirez, R., & Rios-Vargas, M. (2021, August 12). Improved Race and Ethnicity Measures Reveal U.S. Population Is Much More Multiracial. The United States Census Bureau. https://www.census.gov/library/stories/2021/08/improved-race-ethnicity-measures-reveal-united-states-population-much-more-multiracial.html
+3.  Brady, H. E., Verba, S., & Schlozman, K. L. (1995). Beyond Ses: A Resource Model of Political Participation. The American Political Science Review, 89(2), 271–294. https://doi.org/10.2307/2082425
+4.  Leighley, J. E. (2021). Strength in Numbers? Princeton University Press.
+5.  Besco, R., Garcia-Rios, S., Lagodny, J., Lajevardi, N., Oskooii, K., & Tolley, E. (2022). Fight not flight: The effects of explicit racism on minority political engagement. Electoral Studies, 80, 102515. https://doi.org/10.1016/j.electstud.2022.102515
+6.  Wood, Z. J., & John-Henderson, N. A. (2024). Perceived discrimination, political efficacy, and political participation in American Indian adults. Frontiers in Political Science, 6. https://doi.org/10.3389/fpos.2024.1328521
+7.  Frasure, Lorrie, Wong, Janelle, Vargas, Edward, and Barreto, Matt. Collaborative Multi-racial Post-election Survey (CMPS), United States, 2020. Inter-university Consortium for Political and Social Research \[distributor\], 2024-06-11. https://doi.org/10.3886/ICPSR39096.v1
+8.  Kim, Y. (2023). Absolutely Relative: How Education Shapes Voter Turnout in the United States. Social Indicators Research, 168(1-3), 447–469. https://doi.org/10.1007/s11205-023-03146-1
+9.  McDonald, M. (n.d.). Voter Turnout Demographics \[Review of Voter Turnout Demographics\]. U.S. Elections Project. Retrieved December 13, 2024, from https://www.electproject.org/election-data/voter-turnout-demographics
+10. Oakes, M. (n.d.). Measuring Socioeconomic Status 1. Learning Objectives. https://obssr.od.nih.gov/sites/obssr/files/Measuring-Socioeconomic-Status.pdf
+
+\newpage
 
 # Appendix
 
 ## Research Question 1
 
-### Model Summary - OLR Model with Interactions
-```{r}
-dataset_clean_allvars$Q271_reordered <- factor(dataset_clean_allvars$Q271,
-                            levels = c("(5) Not at all important",
-                                     "(4) Slightly important",
-                                     "(3) Moderately important",
-                                     "(2) Very important",
-                                     "(1) Extremely important"))
-dataset_clean_allvars$Q29_reordered <- factor(dataset_clean_allvars$Q29,
-                            levels = c("(4) Not at all interested in politics",
-                                     "(3) Not that interested in politics",
-                                     "(2) Somewhat interested",
-                                     "(1) Very interested in politics"), ordered=TRUE)
+### Ordinal Model Overall Statistics
 
+|                           | Metric           |
+|---------------------------|------------------|
+| Accuracy                  | 0.4503           |
+| 95% CI                    | (0.4429, 0.4577) |
+| No Information Rate (NIR) | 0.4339           |
+| P Value \[Acc \> NIR\]    | 6.105e-06        |
+| Kappa                     | 0.0787           |
+| Mcnemar's Test P-Value    | \<2.2e-16        |
 
-ord_mod_interactions <- polr(Q29_reordered ~ Q271_reordered * S3B +
-                               race_recoded +
-                  age_recoded +
-            educ +  # Educational Attainment
-            Q21, # Party affiliation
-          data = dataset_clean_allvars, Hess=TRUE)
+### Confusion Matrix
 
+|   | **Actual - Very interested in politics** | **Actual -Somewhat interested** | **Actual - Not that interested in politics** | **Actual - Not at all interested in politics** |
+|---------------|---------------|---------------|---------------|---------------|
+| **Predicted - Very interested in politics** | 650 | 505 | 120 | 31 |
+| **Predicted - Somewhat interested** | 3567 | 6830 | 3202 | 1550 |
+| **Predicted - Not that interested in politics** | 57 | 181 | 203 | 186 |
+| **Predicted - Not at all interested in politics** | 32 | 96 | 118 | 217 |
 
+### Statistics by Class:
 
-summary(ord_mod_interactions)
+|   | Very interested in politics | Somewhat interested | Not that interested in politics | Not at all interested in politics |
+|---------------|---------------|---------------|---------------|---------------|
+| Sensitivity | 0.15095 | 0.8973 | 0.05572 | 0.10938 |
+| Specificity | 0.95045 | 0.1625 | 0.96950 | 0.98419 |
+| Balanced Accuracy | 0.55070 | 0.5299 | 0.51261 | 0.54678 |
 
+### Odds Ratio Table
 
-pvals_interact <- pnorm(-abs(summary(ord_mod_interactions)$coef[,"t value"]))*2
-ctable_interact <- cbind(summary(ord_mod_interactions)$coef,pvals_interact)
-
-ctable_interact
-
-(exp_coefs_interact <- exp(cbind(OR=coef(ord_mod_interactions),confint(ord_mod_interactions))))
-
-head(ord_mod_interactions$fitted.values)
-head(predict(ord_mod_interactions))
-
-confusionMatrix(predict(ord_mod_interactions), dataset_clean$Q29, mode="everything")
-
-
-```
-
-### Odds Ratio Table 
 | Variable | Odds Ratio | 2.5% (Confidence Interval) | 97.5% (Confidence Interval) |
 |------------------|------------------|------------------|------------------|
 | Q271 (4) Slightly important | 0.9672589 | 0.811845068 | 1.1525850 |
@@ -810,17 +792,43 @@ confusionMatrix(predict(ord_mod_interactions), dataset_clean$Q29, mode="everythi
 
 ## Research Question 2
 
-### VIF Table 
+### VIF Table
 
-```{r}
+```{r, echo=FALSE, results=FALSE}
 # Check multicollinearity using VIF
 vif_base <- vif(base_model)
 vif_interaction <- vif(interaction_model)
 ```
 
+|   | Normalized VIF: Base Model | Normalized VIF: Interaction Model |
+|------------------------|------------------------|------------------------|
+| Gender | 1.022 | 1.978 |
+| Treated Unfairly or Discriminated Against | 1.125 | 1.126 |
+| Discrimination Impact on Life Satisfaction | 1.036 | 1.037 |
+| Perceptions Of Discrimination Against Whites | 1.105 | 1.106 |
+| Perceptions Of Discrimination Against Blacks | 1.329 | 1.329 |
+| Perceptions Of Discrimination Against Asian Americans | 1.308 | 1.308 |
+| Perceptions Of Discrimination Against Native Americans | 1.224 | 1.224 |
+| Perceptions Of Discrimination Against Immigrants | 1.357 | 1.359 |
+| Perceptions Of Discrimination Against Latinos | 1.370 | 1.371 |
+| Perceptions Of Discrimination Against Gays and Lesbians | 1.262 | 1.262 |
+| Perceptions Of Discrimination Against Muslims | 1.341 | 1.342 |
+| Education | 1.058 | 1.060 |
+| Orientation | 1.042 | 1.044 |
+| Community Type | 1.017 | 1.018 |
+| Age | 1.028 | 1.030 |
+| Race | 1.027 | 1.725 |
+| Gender \* Race |  | 1.308 |
+
+
 ### Odds Ratio Table
 
+```{r}
+analysis_table
+```
+
 ## Table CONFUSION: Confusion Matrix for Base model
+
 |                                      |                   |               |
 |--------------------------------------|-------------------|---------------|
 | [**Predicted / Actual**]{.underline} | **Not Important** | **Important** |
@@ -828,6 +836,7 @@ vif_interaction <- vif(interaction_model)
 | **Important**                        | 666               | 706           |
 
 ### Table MODEL: Base Model Statistics
+
 |                           | Metric  |
 |---------------------------|---------|
 | Sensitivity (Recall)      | 0.1563  |
@@ -838,6 +847,3 @@ vif_interaction <- vif(interaction_model)
 | No Information Rate (NIR) | 0.7425  |
 | Kappa                     | 0.1361  |
 | Mcnemar's Test P-Value    | \<2e-16 |
-
-
-

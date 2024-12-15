@@ -428,6 +428,91 @@ Table of Reference Levels
 | Importance of Racial Belonging              | Not At All Important       |
 | Interaction Term: Racial Belonging & Gender | Male, Not At All Important |
 
+### TESTING PLOT
+
+```{r}
+  or_data <- exp(cbind(OR = coef(ord_mod_interactions), confint(ord_mod_interactions)))
+  
+  # Calculate p-values
+  p_values <- pnorm(-abs(summary(ord_mod_interactions)$coefficients[, "t value"])) * 2
+  
+  # Keep only significant variables
+  sig_indices <- p_values[names(coef(ord_mod_interactions))] < 0.05
+  or_data_sig <- or_data[sig_indices, ]
+  
+  # Create a mapping for variable names with grouping prefixes
+  rename_map <- c(
+    # Education Group
+    "educCollege graduate" = "1. Education: College Graduate",
+    "educSome college experience" = "1. Education: Some College",
+    
+    # Gender Group
+    "S3B(2) Woman" = "2. Gender: Woman",
+    "S3B(3) Non-binary" = "2. Gender: Non-binary",
+    
+    # Age Group
+    "age_recoded70+" = "3. Age: 70+",
+    "age_recoded60-69" = "3. Age: 60-69",
+    "age_recoded50-59" = "3. Age: 50-59",
+    
+    # Race Group
+    "race_recodedBlack" = "4. Race: Black",
+    "race_recodedAsian American" = "4. Race: Asian",
+    "race_recodedLatino" = "4. Race: Latino",
+    "race_recodedAIAN" = "4. Race: Native",
+    "race_recodedNHPI" = "4. Race: NHPI",
+    
+    # Racial Belonging Group
+    "Q271_reordered(2) Very important" = "5. Racial Belonging: Very Important",
+    "Q271_reordered(1) Extremely important" = "5. Racial Belonging: Extremely Important",
+    
+    # Party ID Group
+    "Q21(2) Democrat" = "6. Party ID: Democrat",
+    "Q21(3) Independent" = "6. Party ID: Independent",
+    "Q21(4) Other party" = "6. Party ID: Other",
+    
+    # Interactions
+    "Q271_reordered(1) Extremely important:S3B(2) Woman" = "7. Interaction: Racial Belonging & Gender: Woman"
+  )
+  
+  # Rename the rownames in the significant data
+  or_data_sig_renamed <- as.data.frame(or_data_sig)  # Ensure this is a data frame
+  rownames(or_data_sig_renamed) <- rename_map[rownames(or_data_sig_renamed)]
+  
+  # Create a custom grouping variable based on the row names
+  group_labels <- c(
+    "Racial Belonging" = "5. Racial Belonging: Very Important", 
+    "Racial Belonging" = "5. Racial Belonging: Extremely Important",
+    "Gender" = "2. Gender: Woman", 
+    "Gender" = "2. Gender: Non-binary", 
+    "Race" = "4. Race: Black", 
+    "Race" = "4. Race: Asian", 
+    "Race" = "4. Race: Latino", 
+    "Race" = "4. Race: Native", 
+    "Race" = "4. Race: NHPI", 
+    "Age" = "3. Age: 50-59", 
+    "Age" = "3. Age: 60-69", 
+    "Age" = "3. Age: 70+", 
+    "Education" = "1. Education: Some College", 
+    "Education" = "1. Education: College Graduate", 
+    "Party ID" = "6. Party ID: Democrat", 
+    "Party ID" = "6. Party ID: Independent", 
+    "Party ID" = "6. Party ID: Other", 
+    "Interaction" = "7. Interaction: Racial Belonging & Gender: Woman"
+  )
+  
+  # Add the grouping variable to the data frame
+  or_data_sig_renamed$group <- group_labels[rownames(or_data_sig_renamed)]
+  
+  # Reorder y-axis based on group labels (so they appear grouped and ordered)
+  # or_data_sig_renamed$variable <- factor(rownames(or_data_sig_renamed), 
+  #                                         levels = rownames(or_data_sig_renamed)[order(or_data_sig_renamed$OR)])
+  # 
+
+```
+
+
+
 # Fitting OLR Model with Interaction Term (Q271 \* Q21 Party ID)
 
 ```{r}

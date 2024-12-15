@@ -406,7 +406,8 @@ odds_ratio_plot_labelled <- function(model) {
     labs(
       title = "Significant Variables with Confidence Intervals",
       x = "Odds Ratio",
-      y = "Variables"
+      y = "Variables",
+      caption = "Note: Some variable levels are excluded due to filtering for significant variables. \n To view the reference level for each variable group, please see the below table."
     )
 
 }
@@ -415,6 +416,17 @@ odds_ratio_plot_labelled <- function(model) {
 odds_ratio_plot_labelled(ord_mod_interactions)
 
 ```
+
+Table of Reference Levels
+
+| Variable Group                              | Reference Level            |
+|---------------------------------------------|----------------------------|
+| Education                                   | No college experience      |
+| Gender                                      | Man                        |
+| Age                                         | 18-29 years old            |
+| Race                                        | White                      |
+| Importance of Racial Belonging              | Not At All Important       |
+| Interaction Term: Racial Belonging & Gender | Male, Not At All Important |
 
 # Fitting OLR Model with Interaction Term (Q271 \* Q21 Party ID)
 

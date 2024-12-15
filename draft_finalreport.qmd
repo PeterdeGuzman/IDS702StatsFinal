@@ -41,6 +41,15 @@ dataset <- da39096.0001  # Access the dataset
 required_cols <- c(
   # Outcome Variable: Stopping discrimination against racial/ethnic minorities
   "Q1R5", 
+  
+  # Outcome Variable: Level of Political Interest
+  "Q29",
+  
+  # Predictor: Importance of Racial Belonging
+  "Q271",
+  
+  # Predictor: Party ID
+  "Q21",
 
   # Demographic Variables
   "S2_RACE_PRIME",   # Primary Race
@@ -122,7 +131,7 @@ head(dataset_new)
 
 ```{r, echo=FALSE, results=FALSE}
 # Data Cleaning and Recoding for dataset_new
-dataset_clean <- dataset_new |> 
+dataset_clean_allvars <- dataset_new |> 
   mutate(
     # Education recoding
     educ = case_when(
@@ -182,9 +191,6 @@ dataset_clean <- dataset_new |>
     sex_orientation = factor(sex_orientation, levels = c("Straight", "Queer", "Refused/Don't Know"))
   )
 
-# Take a look at the updated dataset
-head(dataset_clean)
-
 ```
 
 ```{r echo=FALSE, results=FALSE}
@@ -193,8 +199,105 @@ redundant_columns <- c("Q629R1", "Q629R2", "Q629R3", "Q629R4",
                        "Q629R5", "Q629R6", "Q629R7",
                        "S2_RACE_PRIME", "S13", "S3", "S5_AGE","S14")
 
-dataset_clean <- dataset_clean[, !(names(dataset_clean) %in% redundant_columns)]
+dataset_clean <- dataset_clean_allvars[, !(names(dataset_clean_allvars) %in% redundant_columns)]
 ```
+
+```{r echo=FALSE, results=FALSE}
+# Rename remaining columns in dataset_clean
+colnames(dataset_clean) <- c(
+  "ImportanceOfStoppingDiscriminationAgainstMinorities",  # Q1R5
+  "Gender",                                               # S3B
+  "TreatedUnfairlyOrDiscriminatedAgainst",                # Q627
+  "DiscriminationImpactOnLifeSatisfaction",              # Q633
+  "PerceptionsOfDiscriminationAgainstWhites",            # Q619_Q626R1
+  "PerceptionsOfDiscriminationAgainstBlacks",            # Q619_Q626R2
+  "PerceptionsOfDiscriminationAgainstAsianAmericans",    # Q619_Q626R3
+  "PerceptionsOfDiscriminationAgainstNativeAmericans",   # Q619_Q626R4
+  "PerceptionsOfDiscriminationAgainstImmigrants",        # Q619_Q626R5
+  "PerceptionsOfDiscriminationAgainstLatinos",           # Q619_Q626R6
+  "PerceptionsOfDiscriminationAgainstGaysAndLesbians",   # Q619_Q626R7
+  "PerceptionsOfDiscriminationAgainstMuslims",           # Q619_Q626R8
+  "Education",                                           # educ
+  "SexOrientation",                                      # sex_orientation
+  "Rural",                                               # rural
+  "Race",                                                # race_recoded
+  "Age"                                                  # age_recoded
+)
+
+```
+
+```{r echo=FALSE, results=FALSE}
+# Regression model - RQ2
+base_model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ Gender +
+               TreatedUnfairlyOrDiscriminatedAgainst + 
+               DiscriminationImpactOnLifeSatisfaction +
+               PerceptionsOfDiscriminationAgainstWhites + 
+               PerceptionsOfDiscriminationAgainstBlacks +
+               PerceptionsOfDiscriminationAgainstAsianAmericans + 
+               PerceptionsOfDiscriminationAgainstNativeAmericans + 
+               PerceptionsOfDiscriminationAgainstImmigrants + 
+               PerceptionsOfDiscriminationAgainstLatinos + 
+               PerceptionsOfDiscriminationAgainstGaysAndLesbians + 
+               PerceptionsOfDiscriminationAgainstMuslims +
+               Education + 
+                 SexOrientation +
+                 Rural +
+                 Race +
+                 Age, 
+             
+             data = dataset_clean, family = "binomial")
+```             
+
+
+```{r echo=FALSE, results=FALSE}
+# Regression Model with interaction term - RQ2
+interaction_model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ 
+               TreatedUnfairlyOrDiscriminatedAgainst + 
+               DiscriminationImpactOnLifeSatisfaction +
+               PerceptionsOfDiscriminationAgainstWhites + 
+               PerceptionsOfDiscriminationAgainstBlacks +
+               PerceptionsOfDiscriminationAgainstAsianAmericans + 
+               PerceptionsOfDiscriminationAgainstNativeAmericans + 
+               PerceptionsOfDiscriminationAgainstImmigrants + 
+               PerceptionsOfDiscriminationAgainstLatinos + 
+               PerceptionsOfDiscriminationAgainstGaysAndLesbians + 
+               PerceptionsOfDiscriminationAgainstMuslims +
+               Education + 
+                 SexOrientation +
+                 Rural +
+                 Age + 
+                 Gender * Race,
+               
+             data = dataset_clean, family = "binomial")
+```
+
+
+```{r echo=FALSE, results=FALSE}
+
+## Calculating Odds Ratio, Confidence Interval, and p-values (base model)
+
+# Extract odds ratios
+odds_ratios <- exp(coef(base_model))
+
+# Get confidence intervals for coefficients
+conf_intervals <- exp(confint(base_model))
+
+# Extract p-values
+p_values <- summary(base_model)$coefficients[, 4]
+
+# Combine everything into a single data frame
+results_base_model <- data.frame(
+  OddsRatio = odds_ratios,
+  LowerCI = conf_intervals[, 1],
+  UpperCI = conf_intervals[, 2],
+  PValue = p_values
+)
+
+# Display results
+results_base_model
+```
+
+
 
 
 ```{r echo=FALSE, results=FALSE}
@@ -302,53 +405,6 @@ colnames(analysis_table) <- c("Description", "Odds Ratio", "Lower Confidence Int
 
 
 ```
-
-```{r echo=FALSE, results=FALSE}
-# Regression model - RQ2
-base_model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ Gender +
-               TreatedUnfairlyOrDiscriminatedAgainst + 
-               DiscriminationImpactOnLifeSatisfaction +
-               PerceptionsOfDiscriminationAgainstWhites + 
-               PerceptionsOfDiscriminationAgainstBlacks +
-               PerceptionsOfDiscriminationAgainstAsianAmericans + 
-               PerceptionsOfDiscriminationAgainstNativeAmericans + 
-               PerceptionsOfDiscriminationAgainstImmigrants + 
-               PerceptionsOfDiscriminationAgainstLatinos + 
-               PerceptionsOfDiscriminationAgainstGaysAndLesbians + 
-               PerceptionsOfDiscriminationAgainstMuslims +
-               Education + 
-                 SexOrientation +
-                 Rural +
-                 Race +
-                 Age, 
-             
-             data = dataset_clean, family = "binomial")
-```             
-
-
-```{r echo=FALSE, results=FALSE}
-# Regression Model with interaction term - RQ2
-interaction_model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ 
-               TreatedUnfairlyOrDiscriminatedAgainst + 
-               DiscriminationImpactOnLifeSatisfaction +
-               PerceptionsOfDiscriminationAgainstWhites + 
-               PerceptionsOfDiscriminationAgainstBlacks +
-               PerceptionsOfDiscriminationAgainstAsianAmericans + 
-               PerceptionsOfDiscriminationAgainstNativeAmericans + 
-               PerceptionsOfDiscriminationAgainstImmigrants + 
-               PerceptionsOfDiscriminationAgainstLatinos + 
-               PerceptionsOfDiscriminationAgainstGaysAndLesbians + 
-               PerceptionsOfDiscriminationAgainstMuslims +
-               Education + 
-                 SexOrientation +
-                 Rural +
-                 Age + 
-                 Gender * Race,
-               
-             data = dataset_clean, family = "binomial")
-```
-
-
 
 
 # ordinal model
@@ -669,13 +725,100 @@ Overall, these challenges and opportunities highlight the importance of disaggre
 
 # Appendix
 
-## VIF Table - Research Question 2
+## Research Question 1
+
+### Model Summary - OLR Model with Interactions
+```{r}
+dataset_clean_allvars$Q271_reordered <- factor(dataset_clean_allvars$Q271,
+                            levels = c("(5) Not at all important",
+                                     "(4) Slightly important",
+                                     "(3) Moderately important",
+                                     "(2) Very important",
+                                     "(1) Extremely important"))
+dataset_clean_allvars$Q29_reordered <- factor(dataset_clean_allvars$Q29,
+                            levels = c("(4) Not at all interested in politics",
+                                     "(3) Not that interested in politics",
+                                     "(2) Somewhat interested",
+                                     "(1) Very interested in politics"), ordered=TRUE)
+
+
+ord_mod_interactions <- polr(Q29_reordered ~ Q271_reordered * S3B +
+                               race_recoded +
+                  age_recoded +
+            educ +  # Educational Attainment
+            Q21, # Party affiliation
+          data = dataset_clean_allvars, Hess=TRUE)
+
+
+
+summary(ord_mod_interactions)
+
+
+pvals_interact <- pnorm(-abs(summary(ord_mod_interactions)$coef[,"t value"]))*2
+ctable_interact <- cbind(summary(ord_mod_interactions)$coef,pvals_interact)
+
+ctable_interact
+
+(exp_coefs_interact <- exp(cbind(OR=coef(ord_mod_interactions),confint(ord_mod_interactions))))
+
+head(ord_mod_interactions$fitted.values)
+head(predict(ord_mod_interactions))
+
+confusionMatrix(predict(ord_mod_interactions), dataset_clean$Q29, mode="everything")
+
+
+```
+
+### Odds Ratio Table 
+| Variable | Odds Ratio | 2.5% (Confidence Interval) | 97.5% (Confidence Interval) |
+|------------------|------------------|------------------|------------------|
+| Q271 (4) Slightly important | 0.9672589 | 0.811845068 | 1.1525850 |
+| Q271 (3) Moderately important | 0.9776608 | 0.845556718 | 1.1303745 |
+| Q271 (2) Very important | 1.1952004 | 1.033019394 | 1.3828451 |
+| Q271 (1) Extremely important | 1.6474969 | 1.423670208 | 1.9066091 |
+| S3B(2) Woman | 0.6294256 | 0.540015144 | 0.7336072 |
+| S3B(3) Non-binary | 1.8576658 | 1.002509318 | 3.4617409 |
+| S3B(4) Something else (Specify) | 2.1359493 | 0.377740111 | 13.5124525 |
+| race Black | 0.8676620 | 0.790376010 | 0.9524806 |
+| race Asian American | 0.5945609 | 0.541964870 | 0.6522143 |
+| race Latino | 0.7946622 | 0.575235415 | 0.7848896 |
+| race AIAN | 0.6719204 | 1.27404185 | 1.7384045 |
+| race NHPI | 0.5606006 | 0.458205702 | 0.6860792 |
+| race Arab/MENA | 1.1589043 | 0.899447122 | 1.4956228 |
+| age 30-39 | 1.0310801 | 0.946696738 | 1.0563119 |
+| age 40-49 | 0.9247623 | 0.98549367 | 1.1229868 |
+| age 50-59 | 1.0979487 | 1.000027913 | 1.2054892 |
+| age 60-69 | 1.3238874 | 1.205240800 | 1.4542874 |
+| age 70+ | 1.6896464 | 1.510226543 | 1.8907050 |
+| educSome college experience | 1.5264694 | 1.402573135 | 1.6614197 |
+| educCollege graduate | 2.2337286 | 2.072162224 | 2.4081069 |
+| Q21(2) Democrat | 1.1333513 | 1.045765624 | 1.2282275 |
+| Q21(3) Independent | 0.5806653 | 0.533801211 | 0.6315870 |
+| Q21(4) Other party | 0.2127592 | 0.182654104 | 0.2477198 |
+| Q271 4) Slightly important:S3B(2) Woman | 0.9955364 | 0.782564309 | 1.2663323 |
+| Q271 (3) Moderately important:S3B(2) Woman | 0.9461281 | 0.780040309 | 1.1475378 |
+| Q271 (2) Very important:S3B(2) Woman | 0.9791675 | 0.810674379 | 1.1826356 |
+| Q271 (1) Extremely important:S3B(2) Woman | 0.8114102 | 0.674275440 | 0.9763646 |
+| Q271 (4) Slightly important:S3B(3) Non-binary | 0.6505015 | 0.198565161 | 2.1505278 |
+| Q271 (3) Moderately important:S3B(3) Non-binary | 0.6563254 | 0.249594245 | 1.7277048 |
+| Q271 (2) Very important:S3B(3) Non-binary | 0.5140828 | 0.205132143 | 1.2905898 |
+| Q271 (1) Extremely important:S3B(3) Non-binary | 0.8770903 | 0.354410521 | 2.1835545 |
+| Q271 (4) Slightly important:S3B(4) Something else (Specify) | 0.2279084 | 0.023857021 | 2.0164000 |
+| Q271 (3) Moderately important:S3B(4) Something else (Specify) | 1.7158304 | 0.146865519 | 19.7516328 |
+| Q271 2) Very important:S3B(4) Something else (Specify) | 0.1049752 | 0.006213617 | 1.4210951 |
+| Q271 1) Extremely important:S3B(4) Something else (Specify) | 0.6584933 | 0.079780177 | 4.9850479 |
+
+## Research Question 2
+
+### VIF Table 
 
 ```{r}
 # Check multicollinearity using VIF
 vif_base <- vif(base_model)
 vif_interaction <- vif(interaction_model)
 ```
+
+### Odds Ratio Table
 
 ## Table CONFUSION: Confusion Matrix for Base model
 |                                      |                   |               |
@@ -684,7 +827,7 @@ vif_interaction <- vif(interaction_model)
 | **Not Important**                    | 12361             | 3812          |
 | **Important**                        | 666               | 706           |
 
-## Table MODEL: Base Model Statistics
+### Table MODEL: Base Model Statistics
 |                           | Metric  |
 |---------------------------|---------|
 | Sensitivity (Recall)      | 0.1563  |

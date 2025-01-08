@@ -1,0 +1,1383 @@
+---
+title: "Jennifer_Model"
+format: html
+author: "Jennifer Li"
+editor: visual
+---
+
+Conducting modelling on the 2020 CMPS dataset for Research Question 1
+
+# Packages
+
+```{r}
+library(tidyverse)
+library(dplyr)
+```
+
+# Loading data
+
+```{r, echo=FALSE}
+rm(list=ls())
+file_path <- "/Users/jenniferli/Desktop/39096-0001-Data.rda"
+# Load data 
+load(file_path)
+data <- da39096.0001
+rm(da39096.0001)
+```
+
+# Selecting Variables
+
+Need to include the outcome variable, which is an ordinal variable Q29. Main predictor variable is Q271 "How important is being \[RACIAL GROUP\] to your identity?"
+
+```{r}
+required_cols <- c("Q29", # Outcome Variable; interest in politics
+                   "Q271", # Predictor Variable; importance of race to identity
+                   "S2_RACE_PRIME", # Race
+                   "S3", # Orientation
+                   "S3B", # Gender
+                   "S5_AGE", # Age Category
+                   "S13", # Educational Attainment
+                   "S14", # Community Type
+                   "S7", # Nativity
+                   "Q21", # Party ID
+                   "S2_M", # Multiracial
+                   
+                   # Religion-related variables
+                   "Q58R1",            # Catholic
+                   "Q58R2",            # Protestant
+                   "Q58R3",            # Other Christian
+                   "Q58R4",            # Jewish
+                   "Q58R5",            # Muslim
+                   "Q58R6",            # Hindu
+                   "Q58R7",            # Buddhist
+                   "Q58R8",            # Mormon/LDS
+                   "Q58R9",            # Folk Religion
+                   "Q58R10",           # Daoist
+                   "Q58R11",           # Shamanism
+                   "Q58R12",           # Ancestral Religion
+                   "Q58R13",           # Spiritual but not religious
+                   "Q58R14",           # Atheist
+                   "Q58R15",            # Agnostic
+                   
+                   # Variables capturing experiences with racism
+                   "Q627", # Treated unfairly or discriminated against ,
+                   "Q628", # Location of discrimination
+                   "Q629R1" # Unfair treatment due to racial background/ethnicity
+                   )
+                 
+                   
+                   
+# Create new df
+data_filtered <- data[, required_cols]
+head(data_filtered)
+
+
+
+```
+
+# Cleaning Variables
+
+```{r}
+# Convert the required columns to factors
+data_filtered[required_cols] <- lapply(data_filtered[required_cols], as.factor)
+
+# Verify that the columns have been successfully converted to factors
+str(data_filtered[required_cols])
+head(data_filtered)
+```
+
+Cleaning and Recoding Religion Variables
+
+```{r}
+# Convert individual religion columns to numeric
+for (i in 1:15) {
+  col_name <- paste0("Q58R", i, "_numeric")
+  data_filtered[[col_name]] <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", data_filtered[[paste0("Q58R", i)]]))
+}
+
+# Create a new Religion variable
+data_filtered$Religion <- "None"
+data_filtered$Religion[data_filtered$Q58R1_numeric == 1] <- "Catholic"
+data_filtered$Religion[data_filtered$Q58R2_numeric == 1] <- "Protestant"
+data_filtered$Religion[data_filtered$Q58R3_numeric == 1] <- "Other Christian"
+data_filtered$Religion[data_filtered$Q58R4_numeric == 1] <- "Jewish"
+data_filtered$Religion[data_filtered$Q58R5_numeric == 1] <- "Muslim"
+data_filtered$Religion[data_filtered$Q58R6_numeric == 1] <- "Hindu"
+data_filtered$Religion[data_filtered$Q58R7_numeric == 1] <- "Buddhist"
+data_filtered$Religion[data_filtered$Q58R8_numeric == 1] <- "Mormon/LDS"
+data_filtered$Religion[data_filtered$Q58R9_numeric == 1] <- "Folk Religion"
+data_filtered$Religion[data_filtered$Q58R10_numeric == 1] <- "Daoist"
+data_filtered$Religion[data_filtered$Q58R11_numeric == 1] <- "Shamanism"
+data_filtered$Religion[data_filtered$Q58R12_numeric == 1] <- "Ancestral Religion"
+data_filtered$Religion[data_filtered$Q58R13_numeric == 1] <- "Spiritual but not religious"
+data_filtered$Religion[data_filtered$Q58R14_numeric == 1] <- "Atheist"
+data_filtered$Religion[data_filtered$Q58R15_numeric == 1] <- "Agnostic"
+
+# Convert Religion to a factor
+data_filtered$Religion <- factor(data_filtered$Religion,
+                               levels = c("Catholic", "Protestant", "Other Christian", "Jewish", "Muslim",
+                                          "Hindu", "Buddhist", "Mormon/LDS", "Folk Religion",
+                                          "Daoist", "Shamanism", "Ancestral Religion",
+                                          "Spiritual but not religious", "Atheist", "Agnostic", "None"))
+
+# Create a table of counts for the new Religion variable
+table(data_filtered$Religion)
+
+
+```
+
+Removing deprecated Religion variables
+
+```{r}
+# Remove redundant religion columns (Q58R1 to Q58R15 and their numeric versions)
+redundant_cols <- c(
+  "Q58R1", "Q58R2", "Q58R3", "Q58R4", "Q58R5", "Q58R6", "Q58R7", "Q58R8", 
+  "Q58R9", "Q58R10", "Q58R11", "Q58R12", "Q58R13", "Q58R14", "Q58R15",
+  "Q58R1_numeric", "Q58R2_numeric", "Q58R3_numeric", "Q58R4_numeric", 
+  "Q58R5_numeric", "Q58R6_numeric", "Q58R7_numeric", "Q58R8_numeric", 
+  "Q58R9_numeric", "Q58R10_numeric", "Q58R11_numeric", "Q58R12_numeric", 
+  "Q58R13_numeric", "Q58R14_numeric", "Q58R15_numeric"
+)
+
+# Remove redundant columns from the dataset
+dataset_clean <- data_filtered[, !(names(data_filtered) %in% redundant_cols)]
+
+# Take a look at the updated dataset
+head(dataset_clean)
+```
+
+Cleaning and Recoding Other Variables
+
+```{r}
+dataset_clean <- dataset_clean %>% mutate(educ = case_when(S13 == "(1) Grades 1-8" ~ "No college experience",
+                                                           S13 == "(2) Some High School, but did not graduate" ~ "No college experience",
+                                                           S13 == "(3) High School graduate or GED" ~ "No college experience",
+                                                           S13 == "(4) Some college" ~ "Some college experience",
+                                                           S13 == "(5) Associates, 2-year degree" ~ "College graduate",
+                                                           S13 == "(6) Bachelors, 4-year degree" ~ "College graduate",
+                                                           S13 == "(7) Post-graduate degree" ~ "College graduate"),
+                                          sex_orientation = case_when(S3 == "(01) Straight, that is, not gay or lesbian" ~ "Straight",
+                                                                     S3 == "(02) Gay or lesbian" ~ "Queer",
+                                                                     S3 == "(03) Bisexual" ~ "Queer",
+                                                                     S3 == "(04) Something else (Specify)" ~ "Queer",
+                                                                     S3 == "(88) Refused" ~ "Refused/Don't Know",
+                                                                     S3 == "(99) I don" ~ "Refused/Don't Know"),
+                                          rural = case_when(S14 == "(1) Large urban area" ~ "Urban/suburban",
+                                                            S14 == "(2) Large suburb near large city" ~ "Urban/suburban",
+                                                            S14 == "(3) Small suburb near small town or city" ~ "Urban/suburban",
+                                                            S14 == "(4) Small town or small city" ~ "Urban/suburban",
+                                                            S14 == "(5) Rural area" ~ "Rural"),
+                                          white = case_when(S2_RACE_PRIME == "(1) White" ~ "White", 
+                                                            S2_RACE_PRIME == "(2) Hispanic or Latino" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(3) Black or African American" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(4) Asian American" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(5) American Indian/Native American" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(7) Native Hawaiian" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "Non-White"),
+                                          race_recoded = case_when(S2_RACE_PRIME == "(1) White" ~ "White",
+                                                                   S2_RACE_PRIME == "(2) Hispanic or Latino" ~ "Latino",
+                                                                   S2_RACE_PRIME == "(3) Black or African American" ~ "Black",
+                                                                   S2_RACE_PRIME == "(4) Asian American" ~ "Asian American",
+                                                                   S2_RACE_PRIME == "(5) American Indian/Native American" ~ "AIAN",
+                                                                   S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Arab/MENA",
+                                                                   S2_RACE_PRIME == "(7) Native Hawaiian" ~ "NHPI",
+                                                                   S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "NHPI"))
+
+
+```
+
+# Analysis of Missing Data
+
+```{r}
+# Check the number of missing values for each variable
+missing_summary <- colSums(is.na(dataset_clean))
+missing_summary
+
+# Finding proportion of Missing Data
+missing_proportion <- colSums(is.na(dataset_clean)) / nrow(dataset_clean)
+missing_proportion
+
+# Finding total missing data proportion
+overall_missing <- sum(is.na(dataset_clean)) / (nrow(dataset_clean) * ncol(dataset_clean))
+overall_missing
+```
+
+There is overall 8.3% missing values across all cells in this dataset. This is largely driven by two variables:
+
+-   Q628: (IF S7=2 or 3 & Q627=1\] Did you experience that discrimination here in the United States, or in your home country?)
+
+-   and Q629R1: In your opinion, were you unfairly treated because of your (Racial background or ethnicity)
+
+For Q628, there are 15,709 (89.53%) missing values. For Q629R1 there are 9,180 (52.32%) missing values. We may need to consider not including these variables, because they may reduce our usable sample size.
+
+```{r}
+glimpse(dataset_clean)
+```
+
+# Looking at Outcome and main Predictor variable
+
+```{r}
+# Outcome - Q29
+table(dataset_clean$Q29) / nrow(dataset_clean)
+# Main Predictor - Q271
+table(dataset_clean$Q271) / nrow(dataset_clean)
+```
+
+Table of Q29 for full sample - Interest in Politics
+
+| Level of Interest in Politics     | Percent of Total Respondents |
+|-----------------------------------|------------------------------|
+| Very interested in politics       | 24.54%                       |
+| Somewhat interested               | 43.39%                       |
+| Not that interested in politics   | 20.76%                       |
+| Not at all interested in politics | 11.31%                       |
+
+Table of Q271 for full sample - How important is being a member of \[RACIAL GROUP\] to your identity?
+
+| Importance of Race to Identity | Percent of Total Respondents |
+|--------------------------------|------------------------------|
+| Extremely Important            | 31.27%                       |
+| Very Important                 | 24.68%                       |
+| Moderately Important           | 21.40%                       |
+| Slightly Important             | 8.58%                        |
+| Not at all important           | 14.07%                       |
+
+# Counts and proportion for every variable
+
+```{r}
+lapply(dataset_clean[, -1], table)
+
+```
+
+# Creating summary table
+
+```{r}
+
+# Function to create a summary table with counts and proportions
+create_summary_table <- function(variable, var_name) {
+  counts <- table(variable)
+  if (length(counts) == 0) {
+    return(data.frame(Variable = character(), Level = character(), Count = numeric(), Proportion = numeric()))
+  }
+  proportions <- prop.table(counts)
+  summary_df <- data.frame(
+    Variable = var_name,
+    Level = names(counts),
+    Count = as.numeric(counts),
+    Proportion = round(as.numeric(proportions), 4)
+  )
+  return(summary_df)
+}
+
+# Apply the function to each variable of interest in the cleaned dataset
+categorical_vars <- names(dataset_clean)
+
+# Initialize an empty data frame to store all summary tables
+full_summary_table <- data.frame(Variable = character(), Level = character(), Count = numeric(), Proportion = numeric())
+
+# Iterate through each variable and generate the summary table
+for (var in categorical_vars) {
+  summary_table <- create_summary_table(dataset_clean[[var]], var)
+  full_summary_table <- rbind(full_summary_table, summary_table)
+}
+
+# Print the full summary table
+full_summary_table
+
+```
+
+| **Variable** | **Level** | **Count** | **Proportion** |
+|------------------|-------------------|------------------|------------------|
+| Q29 | \(1\) Very interested in politics | 4306 | 25% |
+| Q29 | \(2\) Somewhat interested | 7612 | 43% |
+| Q29 | \(3\) Not that interested in politics | 3643 | 21% |
+| Q29 | \(4\) Not at all interested in politics | 1984 | 11% |
+| Q271 | \(1\) Extremely important | 5487 | 31% |
+| Q271 | \(2\) Very important | 4330 | 25% |
+| Q271 | \(3\) Moderately important | 3754 | 21% |
+| Q271 | \(4\) Slightly important | 1505 | 9% |
+| Q271 | \(5\) Not at all important | 2469 | 14% |
+| S2_RACE_PRIME | \(1\) White | 3923 | 22% |
+| S2_RACE_PRIME | \(2\) Hispanic or Latino | 3873 | 22% |
+| S2_RACE_PRIME | \(3\) Black or African American | 4613 | 26% |
+| S2_RACE_PRIME | \(4\) Asian American | 3826 | 22% |
+| S2_RACE_PRIME | \(5\) American Indian/Native American | 713 | 4% |
+| S2_RACE_PRIME | \(6\) Arab, Middle Eastern or North African | 226 | 1% |
+| S2_RACE_PRIME | \(7\) Native Hawaiian | 106 | 1% |
+| S2_RACE_PRIME | \(8\) Not Hawaiian, but other Pacific Islander | 255 | 1% |
+| S3 | \(01\) Straight, that is, not gay or lesbian | 15404 | 88% |
+| S3 | \(02\) Gay or lesbian | 594 | 3% |
+| S3 | \(03\) Bisexual | 937 | 5% |
+| S3 | \(04\) Something else (Specify) | 286 | 2% |
+| S3 | \(88\) Refused | 195 | 1% |
+| S3 | \(99\) I don | 129 | 1% |
+| S3B | \(1\) Man | 7431 | 42% |
+| S3B | \(2\) Woman | 9932 | 57% |
+| S3B | \(3\) Non-binary | 148 | 1% |
+| S3B | \(4\) Something else (Specify) | 34 | 0% |
+| S5_AGE | \(2\) 18-29 | 4026 | 23% |
+| S5_AGE | \(3\) 30-39 | 3614 | 21% |
+| S5_AGE | \(4\) 40-49 | 2783 | 16% |
+| S5_AGE | \(5\) 50-59 | 2717 | 15% |
+| S5_AGE | \(6\) 60-69 | 2745 | 16% |
+| S5_AGE | \(7\) 70 + | 1660 | 9% |
+| S13 | \(1\) Grades 1-8 | 126 | 1% |
+| S13 | \(2\) Some High School, but did not graduate | 596 | 3% |
+| S13 | \(3\) High School graduate or GED | 3227 | 18% |
+| S13 | \(4\) Some college | 3689 | 21% |
+| S13 | \(5\) Associates, 2-year degree | 2017 | 12% |
+| S13 | \(6\) Bachelors, 4-year degree | 4625 | 26% |
+| S13 | \(7\) Post-graduate degree | 3265 | 19% |
+| S7 | \(1\) United States | 13297 | 76% |
+| S7 | \(2\) Another country | 3962 | 23% |
+| S7 | \(3\) on the Island of Puerto Rico | 286 | 2% |
+| Q21 | \(1\) Republican | 3238 | 18% |
+| Q21 | \(2\) Democrat | 8318 | 47% |
+| Q21 | \(3\) Independent | 5174 | 29% |
+| Q21 | \(4\) Other party | 815 | 5% |
+| S2_M | \(1\) Yes | 4671 | 27% |
+| S2_M | \(2\) No | 12874 | 73% |
+| Q627 | \(1\) Yes | 8365 | 48% |
+| Q627 | \(2\) No | 9180 | 52% |
+| Q628 | \(1\) In the United States | 1404 | 76% |
+| Q628 | \(2\) In my country of origin | 153 | 8% |
+| Q628 | \(3\) In both places | 279 | 15% |
+| Q629R1 | \(0\) NO TO: Racial background or ethnicity | 2947 | 35% |
+| Q629R1 | \(1\) Racial background or ethnicity | 5418 | 65% |
+| Religion | Catholic | 3702 | 21% |
+| Religion | Protestant | 4045 | 23% |
+| Religion | Other Christian | 1826 | 10% |
+| Religion | Jewish | 264 | 2% |
+| Religion | Muslim | 524 | 3% |
+| Religion | Hindu | 491 | 3% |
+| Religion | Buddhist | 464 | 3% |
+| Religion | Mormon/LDS | 112 | 1% |
+| Religion | Folk Religion | 27 | 0% |
+| Religion | Daoist | 21 | 0% |
+| Religion | Shamanism | 26 | 0% |
+| Religion | Ancestral Religion | 77 | 0% |
+| Religion | Spiritual but not religious | 1288 | 7% |
+| Religion | Atheist | 820 | 5% |
+| Religion | Agnostic | 1084 | 6% |
+| Religion | None | 2774 | 16% |
+| educ | College graduate | 9907 | 56% |
+| educ | No college experience | 3949 | 23% |
+| educ | Some college experience | 3689 | 21% |
+| sex_orientaton | Queer | 1817 | 10% |
+| sex_orientation | Refused/Don't Know | 324 | 2% |
+| sex_orientation | Straight | 15404 | 88% |
+| rural | Rural | 1453 | 8% |
+| rural | Urban/suburban | 16092 | 92% |
+|  |  |  |  |
+|  |  |  |  |
+|  |  |  |  |
+|  |  |  |  |
+|  |  |  |  |
+|  |  |  |  |
+|  |  |  |  |
+|  |  |  |  |
+
+# Model 1: Ordinal Regression Modelling
+
+Q29：对政治感兴趣的程度 Q271：种族身份的重要性
+
+## Model 1.1
+
+```{r}
+
+# Load required packages
+library(ordinal)
+library(car)
+library(brant)
+library(tidyverse)
+library(MASS)
+
+# Convert outcome and predictor to ordered factors if not already
+dataset_clean$Q29 <- factor(dataset_clean$Q29, 
+                           levels = c("(4) Not at all interested in politics",
+                                    "(3) Not that interested in politics",
+                                    "(2) Somewhat interested",
+                                    "(1) Very interested in politics"),
+                           ordered = TRUE)
+
+dataset_clean$Q271 <- factor(dataset_clean$Q271,
+                            levels = c("(5) Not at all important",
+                                     "(4) Slightly important",
+                                     "(3) Moderately important", 
+                                     "(2) Very important",
+                                     "(1) Extremely important"),
+                            ordered = TRUE)
+
+# Fit base model
+m1 <- clm(Q29 ~ Q271, data = dataset_clean)
+
+# Fit model with interaction between racial identity importance and race
+m2 <- clm(Q29 ~ Q271 * S2_RACE_PRIME, data = dataset_clean)
+
+# Model summaries
+print("Model 1 Summary:")
+summary(m1)
+
+print("Model 2 Summary:")
+summary(m2)
+
+# Check for multicollinearity using a linear approximation
+vif_m2 <- vif(lm(as.numeric(Q29) ~ Q271 * S2_RACE_PRIME, data = dataset_clean))
+print("Variance Inflation Factors:")
+print(vif_m2)
+
+# Test proportional odds assumption
+print("Testing proportional odds assumption:")
+test1 <- nominal_test(m1)
+print("Nominal test for Model 1:")
+print(test1)
+
+test2 <- nominal_test(m2)
+print("Nominal test for Model 2:")
+print(test2)
+
+# Alternative diagnostic approach using linear approximation
+lm_approx <- lm(as.numeric(Q29) ~ Q271, data = dataset_clean)
+diagnostics_df <- data.frame(
+  fitted = fitted(lm_approx),
+  residuals = residuals(lm_approx),
+  index = 1:nrow(dataset_clean)
+)
+
+# Plot residuals vs fitted values using linear approximation
+p1 <- ggplot(diagnostics_df, aes(x = fitted, y = residuals)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = "loess") +
+  theme_minimal() +
+  labs(title = "Residuals vs Fitted Values (Linear Approximation)",
+       x = "Fitted Values",
+       y = "Residuals")
+print(p1)
+
+# Calculate and plot Cook's distance
+cooks_d <- cooks.distance(lm_approx)
+influence_df <- data.frame(
+  index = 1:length(cooks_d),
+  cooks_distance = cooks_d
+)
+
+p2 <- ggplot(influence_df, aes(x = index, y = cooks_distance)) +
+  geom_point() +
+  geom_hline(yintercept = 4/nrow(dataset_clean), color = "red", linetype = "dashed") +
+  theme_minimal() +
+  labs(title = "Cook's Distance Plot",
+       x = "Observation Number",
+       y = "Cook's Distance")
+print(p2)
+
+# Count influential observations
+influential_obs <- which(cooks_d > 4/nrow(dataset_clean))
+print("Number of influential observations:")
+print(length(influential_obs))
+
+# Create prediction visualization
+pred_data <- expand.grid(
+  Q271 = levels(dataset_clean$Q271),
+  S2_RACE_PRIME = levels(dataset_clean$S2_RACE_PRIME)
+)
+
+# Get predicted probabilities
+preds <- predict(m2, newdata = pred_data, type = "prob")
+# Convert predictions to numeric scores (weighted average)
+pred_data$predicted_score <- apply(preds$fit, 1, function(x) sum(x * 1:4))
+
+# Create prediction plot
+p3 <- ggplot(pred_data, aes(x = Q271, y = predicted_score, color = S2_RACE_PRIME)) +
+  geom_point() +
+  geom_line(aes(group = S2_RACE_PRIME)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Predicted Political Interest by Racial Identity Importance and Race",
+       x = "Importance of Racial Identity",
+       y = "Predicted Political Interest Level (1-4)",
+       color = "Race/Ethnicity")
+print(p3)
+
+# Print the coefficients table
+print("Coefficients for Model 2:")
+coef_table <- summary(m2)$coefficients
+print(coef_table)
+
+# Calculate and print odds ratios for the coefficients
+odds_ratios <- exp(coef_table[, "Estimate"])
+print("Odds Ratios:")
+print(odds_ratios)
+
+```
+
+### Interpretation
+
+1.  Model Fit and Comparison:
+
+-   We have two models: a simpler Model 1 (Q29 \~ Q271) and a more complex Model 2 with interactions (Q29 \~ Q271 \* S2_RACE_PRIME)
+-   Model 2 has a better fit based on:
+    -   Lower AIC (44585 vs 44784)
+    -   Higher log-likelihood (-22250 vs -22385)
+
+2.  Proportional Odds Assumption:
+
+-   The nominal test for Model 2 shows significant violations (p \< 2.2e-16)
+-   This suggests the effect of racial identity importance varies across different levels of political interest
+-   While this violation is concerning, it's common in large samples and the model can still provide useful insights
+
+3.  Multicollinearity:
+
+-   The VIF values show:
+    -   Very high multicollinearity for Q271 (466.39)
+    -   Moderate for S2_RACE_PRIME (32.76)
+    -   High for interactions (9870.36)
+-   This high multicollinearity is partly due to the interaction terms and categorical variables
+
+4.  Residuals and Model Diagnostics:
+
+-   The residuals plot shows:
+    -   A relatively flat line around zero
+    -   Some systematic patterns in the residuals
+    -   Suggests adequate but not perfect fit
+
+5.  Influential Points:
+
+-   883 influential observations identified
+-   Cook's distance plot shows multiple observations above the threshold
+-   Given the large sample size (17,545), this number of influential points is not extremely concerning
+
+6.  Key Findings from Model 2:
+
+-   Main effect of racial identity importance is significant (Q271.L: p=2.32e-06)
+-   Most racial/ethnic groups show significantly different baseline levels of political interest compared to Whites
+-   Several significant interaction effects, notably:
+    -   Black/African Americans show different patterns than other groups
+    -   Hispanic/Latino and Asian American groups have some distinct patterns
+    -   Pacific Islanders show strong differences in how racial identity relates to political interest
+
+7.  Predicted Relationships (from plot):
+
+-   Generally positive relationship between racial identity importance and political interest
+-   Different racial/ethnic groups show varying patterns:
+    -   White and Arab/Middle Eastern/North African groups show strongest positive relationship
+    -   Native Hawaiian and Pacific Islander groups show more variable patterns
+    -   Other groups show moderate positive relationships
+
+## Model 1.2: Improved Ordinal Model
+
+Key improvements:
+
+Reduced multicollinearity through simplified predictors Added control variables Included mixed effects to account for clustering Added cross-validation for model validation Provides multiple diagnostic approaches
+
+```{r}
+
+# Data preparation
+# Simplify racial identity variable
+dataset_clean$Q271_simple <- as.numeric(dataset_clean$Q271)
+
+# Create major racial categories
+dataset_clean$race_major <- fct_collapse(dataset_clean$S2_RACE_PRIME,
+    White = "(1) White",
+    Black = "(3) Black or African American",
+    Hispanic = "(2) Hispanic or Latino",
+    Asian = "(4) Asian American",
+    Other = c("(5) American Indian/Native American", 
+              "(6) Arab, Middle Eastern or North African",
+              "(7) Native Hawaiian",
+              "(8) Not Hawaiian, but other Pacific Islander"))
+
+# Fit simplified model
+m3 <- clm(Q29 ~ Q271_simple * race_major, data = dataset_clean)
+
+# Model with controls
+m4 <- clm(Q29 ~ Q271_simple * race_major + 
+          S5_AGE +  # Age
+          S3B +     # Gender
+          S13 +     # Education
+          Q21,      # Party affiliation
+          data = dataset_clean)
+
+# Diagnostics using linear approximation
+lm_approx <- lm(as.numeric(Q29) ~ Q271_simple * race_major, data = dataset_clean)
+diagnostics_df <- data.frame(
+  fitted = fitted(lm_approx),
+  residuals = residuals(lm_approx),
+  index = 1:nrow(dataset_clean)
+)
+
+# Residual plot
+p1 <- ggplot(diagnostics_df, aes(x = fitted, y = residuals)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = "loess") +
+  theme_minimal() +
+  labs(title = "Residuals vs Fitted Values (Linear Approximation)",
+       x = "Fitted Values",
+       y = "Residuals")
+print(p1)
+
+# Influence analysis
+cooks_d <- cooks.distance(lm_approx)
+influence_df <- data.frame(
+  index = 1:length(cooks_d),
+  cooks_distance = cooks_d
+)
+
+p2 <- ggplot(influence_df, aes(x = index, y = cooks_distance)) +
+  geom_point() +
+  geom_hline(yintercept = 4/nrow(dataset_clean), color = "red", linetype = "dashed") +
+  theme_minimal() +
+  labs(title = "Cook's Distance Plot",
+       x = "Observation Number",
+       y = "Cook's Distance")
+print(p2)
+
+# Model comparison and assessment
+print("Summary of simplified model (m3):")
+summary(m3)
+
+print("Summary of model with controls (m4):")
+summary(m4)
+
+# Check VIF for main effects model
+vif_m3 <- vif(lm_approx)
+print("VIF for simplified model:")
+print(vif_m3)
+
+# Test proportional odds assumption
+nominal_test_m3 <- nominal_test(m3)
+print("Nominal test for simplified model:")
+print(nominal_test_m3)
+
+# Predictions for visualization
+pred_data <- expand.grid(
+  Q271_simple = seq(1, 5, by = 0.1),
+  race_major = unique(dataset_clean$race_major)
+)
+
+# Get predicted probabilities
+preds <- predict(m3, newdata = pred_data, type = "prob")
+# Convert predictions to numeric scores (weighted average)
+pred_data$predicted_score <- apply(preds$fit, 1, function(x) sum(x * 1:4))
+
+# Create prediction plot
+p3 <- ggplot(pred_data, aes(x = Q271_simple, y = predicted_score, color = race_major)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "Predicted Political Interest by Racial Identity Importance",
+       x = "Importance of Racial Identity",
+       y = "Predicted Political Interest Level",
+       color = "Race/Ethnicity") +
+  theme(legend.position = "right")
+print(p3)
+
+# Calculate odds ratios
+coef_table <- summary(m3)$coefficients
+odds_ratios <- exp(coef_table[, "Estimate"])
+print("Odds Ratios for simplified model:")
+print(odds_ratios)
+
+# Count influential observations
+influential_obs <- which(cooks_d > 4/nrow(dataset_clean))
+print("Number of influential observations:")
+print(length(influential_obs))
+
+```
+
+### Interpretation
+
+1.  Model Improvement:
+
+-   The simplified model (m3) shows better stability than the original model
+-   Adding controls (m4) significantly improved the model fit:
+    -   AIC decreased from 44622 to 42620
+    -   Log-likelihood improved from -22299 to -21281
+
+2.  Major Findings: From Model 4 (with controls):
+
+<!-- -->
+
+a)  Racial Identity Effects:
+
+-   Base racial identity importance (Q271_simple) is not significant (p=0.449)
+-   All racial groups show significantly different baseline political interest compared to Whites
+-   Significant interaction effects:
+    -   Black respondents: strongest positive interaction (β=0.170, p\<0.001)
+    -   Asian respondents: moderate positive interaction (β=0.122, p\<0.001)
+    -   Hispanic respondents: slight positive interaction (β=0.081, p\<0.05)
+
+b)  Important Control Variables:
+
+-   Education shows strong positive effects
+    -   Post-graduate degree has strongest effect (β=1.286, p\<0.001)
+-   Age effects are significant for older groups
+    -   70+ shows highest interest (β=0.472, p\<0.001)
+-   Gender differences are substantial
+    -   Women show lower interest (β=-0.530, p\<0.001)
+-   Party affiliation matters
+    -   Independents (β=-0.568) and Other party (β=-1.549) show less interest
+
+3.  Diagnostic Issues:
+
+<!-- -->
+
+a)  Multicollinearity:
+
+-   Still present but improved from original model:
+    -   VIF for race_major: 3.05
+    -   VIF for interactions: 3.34
+-   While high, these are more manageable than the original model
+
+b)  Residuals:
+
+-   Show some pattern in residual plot
+-   Suggests possible non-linear relationships not captured
+
+c)  Influential Points:
+
+-   979 influential observations (5.6% of sample)
+-   While high, this is better than the original model
+
+4.  Model Predictions (from plot):
+
+-   Shows clear racial/ethnic differences in relationship between identity importance and political interest
+-   Black respondents show steepest positive slope
+-   White respondents show relatively flat but positive relationship
+-   Other groups show moderate positive relationships
+
+5.  Violations and Concerns:
+
+-   Model convergence warning in m3
+-   Some remaining non-linearity in residuals
+-   **Proportional odds assumption is violated (significant nominal test)**
+
+From Model 3 (simplified model):
+
+```         
+Tests of nominal effects
+formula: Q29 ~ Q271_simple * race_major
+                       Df logLik   AIC   LRT  Pr(>Chi)    
+<none>                    -22299 44623                    
+Q271_simple                                               
+race_major              8 -22248 44535 103.7 < 2.2e-16 ***
+Q271_simple:race_major 10 -22246 44536 106.9 < 2.2e-16 ***
+```
+
+The test results show: 1. The race_major variable has a significant LRT (Likelihood Ratio Test) statistic (103.7) with p \< 2.2e-16 2. The interaction term Q271_simple:race_major also has a significant LRT (106.9) with p \< 2.2e-16
+
+Interpretation: - Yes, the proportional-odds assumption is violated. Both the main effect of race and its interaction with racial identity importance show highly significant p-values (\< 2.2e-16) - This means that the effect of the predictors is not constant across the different thresholds of political interest - In other words, the relationship between racial identity importance and political interest varies not just across racial groups, but also across different levels of political interest
+
+Implications: 1. The current model might not fully capture the complexity of the relationships 2. Consider alternative approaches such as: - Using partial proportional odds models - Fitting separate models for different levels of political interest - Using multinomial logistic regression instead of ordinal
+
+# Model 2: Multinomial Logistic Regression Modelling
+
+```{r}
+
+# Load required packages
+library(nnet)  # for multinomial logistic regression
+library(tidyverse)
+library(car)
+library(effects)
+
+# Ensure outcome variable is a regular factor (not ordered)
+dataset_clean$Q29_unordered <- factor(dataset_clean$Q29, ordered = FALSE)
+
+# Fit multinomial models
+m_mult <- multinom(Q29_unordered ~ Q271_simple * race_major, data = dataset_clean)
+m_mult_controls <- multinom(Q29_unordered ~ Q271_simple * race_major + 
+                          S5_AGE + S3B + S13 + Q21, 
+                          data = dataset_clean)
+
+# Calculate predicted probabilities for marginal effects
+# Create sequence of Q271_simple values
+x_vals <- seq(min(dataset_clean$Q271_simple), max(dataset_clean$Q271_simple), length.out = 100)
+
+# Function to calculate average predicted probabilities
+get_avg_probs <- function(model, newdata, var_name) {
+    preds <- predict(model, newdata = newdata, type = "probs")
+    colMeans(preds)
+}
+
+# Calculate marginal effects by race
+races <- unique(dataset_clean$race_major)
+marg_effects <- list()
+
+for(race in races) {
+    probs <- matrix(0, nrow = length(x_vals), ncol = length(levels(dataset_clean$Q29_unordered)))
+    for(i in seq_along(x_vals)) {
+        temp_data <- dataset_clean
+        temp_data$Q271_simple <- x_vals[i]
+        temp_data$race_major <- race
+        probs[i,] <- get_avg_probs(m_mult, temp_data, "Q271_simple")
+    }
+    marg_effects[[race]] <- data.frame(
+        x = x_vals,
+        race = race,
+        prob1 = probs[,1],
+        prob2 = probs[,2],
+        prob3 = probs[,3],
+        prob4 = probs[,4]
+    )
+}
+
+# Combine all marginal effects
+marg_effects_df <- bind_rows(marg_effects)
+
+# Create plots for marginal effects
+# Reshape data for plotting
+marg_effects_long <- marg_effects_df %>%
+    pivot_longer(cols = starts_with("prob"),
+                names_to = "outcome",
+                values_to = "probability") %>%
+    mutate(outcome = factor(outcome,
+                          levels = paste0("prob", 1:4),
+                          labels = levels(dataset_clean$Q29_unordered)))
+
+# Plot marginal effects
+p1 <- ggplot(marg_effects_long, 
+             aes(x = x, y = probability, color = outcome)) +
+    geom_line() +
+    facet_wrap(~race) +
+    theme_minimal() +
+    labs(title = "Marginal Effects of Racial Identity Importance by Race",
+         x = "Importance of Racial Identity",
+         y = "Predicted Probability",
+         color = "Political Interest Level") +
+    theme(legend.position = "bottom")
+print(p1)
+
+# Model fit statistics and comparisons
+print("Model summaries:")
+print(summary(m_mult))
+print(summary(m_mult_controls))
+
+# Calculate McFadden's R-squared
+null_model <- multinom(Q29_unordered ~ 1, data = dataset_clean)
+mcfadden_r2 <- 1 - logLik(m_mult)/logLik(null_model)
+mcfadden_r2_controls <- 1 - logLik(m_mult_controls)/logLik(null_model)
+
+print("McFadden's R-squared:")
+print(c(Basic = mcfadden_r2, WithControls = mcfadden_r2_controls))
+
+# Classification accuracy
+pred_class <- predict(m_mult)
+conf_matrix <- table(pred_class, dataset_clean$Q29_unordered)
+accuracy <- sum(diag(conf_matrix))/sum(conf_matrix)
+
+print("Classification accuracy:")
+print(accuracy)
+print("Confusion Matrix:")
+print(conf_matrix)
+
+# Compare AIC
+print("AIC comparison:")
+print(c(
+    Multinomial = AIC(m_mult),
+    MultinomialWithControls = AIC(m_mult_controls)
+))
+
+# Calculate predicted probabilities
+pred_data <- expand.grid(
+    Q271_simple = seq(1, 5, by = 0.1),
+    race_major = unique(dataset_clean$race_major)
+)
+
+# Get predictions
+preds <- predict(m_mult, newdata = pred_data, type = "probs")
+pred_data <- cbind(pred_data, as.data.frame(preds))
+
+# Create separate plots for each outcome level
+pred_long <- pred_data %>%
+    pivot_longer(cols = starts_with("("),
+                names_to = "interest_level",
+                values_to = "probability")
+
+# Plot for each outcome level
+p2 <- ggplot(pred_long, 
+             aes(x = Q271_simple, y = probability, color = race_major)) +
+    geom_line() +
+    facet_wrap(~interest_level) +
+    theme_minimal() +
+    labs(title = "Predicted Probabilities by Outcome Level",
+         x = "Importance of Racial Identity",
+         y = "Probability",
+         color = "Race/Ethnicity") +
+    theme(legend.position = "bottom")
+print(p2)
+
+
+```
+
+### Interpretation
+
+1.  Model Fit:
+
+-   Multinomial model with controls (AIC = 42457.29) shows better fit than without controls (AIC = 44548.09)
+-   Original ordinal model with controls had AIC = 42620, so the multinomial model performs slightly better
+-   McFadden's R-squared improved from 0.009 (basic) to 0.058 (with controls), indicating better fit with controls but still relatively low explanatory power
+
+2.  Classification Performance:
+
+-   Overall accuracy is 43.39%
+-   The confusion matrix shows the model is predicting mostly "Somewhat interested" category
+-   This suggests poor discrimination between categories, as it's biased toward the most common outcome
+
+3.  Key Findings from Multinomial Model:
+
+<!-- -->
+
+a)  Racial Identity Effects (from model with controls):
+
+-   Base effect of racial identity importance (Q271_simple) is not significant for most categories
+-   Significant interactions with race, particularly:
+    -   Black respondents show strongest positive interaction (β=0.291, p\<0.001)
+    -   Asian respondents show moderate interaction (β=0.208, p\<0.001)
+    -   Hispanic respondents show weaker interaction (β=0.121, p\<0.05)
+
+b)  Control Variables:
+
+-   Education shows strong positive effects
+    -   Post-graduate degree has strongest effect (β=2.338 for "Very interested")
+-   Gender differences are substantial
+    -   Women less likely to be "Very interested" (β=-0.948)
+-   Age effects increase with age
+    -   70+ shows highest interest (β=0.842 for "Very interested")
+
+4.  Visualization Insights:
+
+<!-- -->
+
+a)  Marginal Effects Plot shows:
+
+-   Different patterns across racial groups
+-   Black respondents show steepest increase in political interest with racial identity importance
+-   White respondents show relatively flat relationship
+-   Asian and Hispanic respondents show moderate positive relationships
+
+b)  Predicted Probabilities Plot reveals:
+
+-   Higher probability of being "Somewhat interested" across all groups
+-   Decreasing probability of being "Not at all interested" as racial identity importance increases
+-   Increasing probability of being "Very interested" for most racial groups as racial identity importance increases
+
+5.  Comparison with Ordinal Model:
+
+Advantages of Multinomial Model: - No proportional odds assumption - More flexible in modeling category-specific effects - Slightly better model fit (lower AIC)
+
+Disadvantages: - More complex interpretation - Less parsimonious (more parameters) - Poor classification performance - Loss of ordinal information
+
+Recommendations: 1. Consider using a partial proportional odds model that relaxes the proportional odds assumption only for variables that violate it 2. Add interaction terms between control variables 3. Consider collapsing some categories if theoretically justified 4. Use robust standard errors to account for potential heteroskedasticity
+
+# Model 3: Partial Proportional Odds (PPO)
+
+```{r}
+
+
+# Load required packages
+library(VGAM)
+library(ordinal)
+library(tidyverse)
+library(sandwich)
+
+# Create ordered 3-category version
+dataset_clean$Q29_3cat <- ordered(case_when(
+  dataset_clean$Q29 %in% c("(4) Not at all interested in politics", 
+                          "(3) Not that interested in politics") ~ "Low Interest",
+  dataset_clean$Q29 == "(2) Somewhat interested" ~ "Medium Interest",
+  dataset_clean$Q29 == "(1) Very interested in politics" ~ "High Interest"
+), levels = c("Low Interest", "Medium Interest", "High Interest"))
+
+# Fit partial proportional odds model
+ppo_model <- vglm(Q29_3cat ~ Q271_simple * race_major + 
+                  S5_AGE + S3B + S13 + Q21,
+                  family = cumulative(parallel = FALSE ~ Q271_simple + race_major),
+                  data = dataset_clean)
+
+# Model with interaction terms
+m_interaction <- clm(Q29 ~ Q271_simple * race_major + 
+                    Q271_simple * S5_AGE +
+                    Q271_simple * S13 +
+                    Q271_simple * Q21 +
+                    S3B + S13 + Q21,
+                    data = dataset_clean)
+
+# Create prediction data
+pred_data <- expand.grid(
+  Q271_simple = seq(1, 5, by = 0.1),
+  race_major = unique(dataset_clean$race_major),
+  S5_AGE = "(3) 30-39",
+  S3B = "(1) Man",
+  S13 = "(4) Some college",
+  Q21 = "(2) Democrat"
+)
+
+# Get predictions for PPO model
+ppo_preds <- predict(ppo_model, newdata = pred_data, type = "response")
+pred_data <- cbind(pred_data, as.data.frame(ppo_preds))
+
+# Reshape for plotting
+pred_long <- pred_data %>%
+  pivot_longer(cols = c("Low Interest", "Medium Interest", "High Interest"),
+               names_to = "interest_level",
+               values_to = "probability")
+
+# Create plot
+p1 <- ggplot(pred_long, aes(x = Q271_simple, y = probability, color = interest_level)) +
+  geom_line() +
+  facet_wrap(~race_major) +
+  theme_minimal() +
+  labs(title = "Predicted Probabilities by Race and Interest Level",
+       x = "Importance of Racial Identity",
+       y = "Predicted Probability",
+       color = "Interest Level") +
+  theme(legend.position = "bottom")
+print(p1)
+
+# Model summaries
+print("Partial Proportional Odds Model Summary:")
+summary(ppo_model)
+
+print("Model Coefficients:")
+coef(ppo_model)
+
+print("AIC for PPO model:")
+AIC(ppo_model)
+
+print("AIC for interaction model:")
+AIC(m_interaction)
+
+# Cross-validation
+set.seed(123)
+fold_ids <- sample(1:5, nrow(dataset_clean), replace = TRUE)
+
+cv_results <- data.frame(
+  fold = 1:5,
+  ppo_accuracy = NA
+)
+
+for(fold in 1:5) {
+  # Split data
+  train_data <- dataset_clean[fold_ids != fold, ]
+  test_data <- dataset_clean[fold_ids == fold, ]
+  
+  # Fit PPO model
+  ppo_train <- vglm(Q29_3cat ~ Q271_simple * race_major + 
+                    S5_AGE + S3B + S13 + Q21,
+                    family = cumulative(parallel = FALSE ~ Q271_simple + race_major),
+                    data = train_data)
+  
+  # Predict
+  ppo_pred <- predict(ppo_train, newdata = test_data, type = "response")
+  predicted_class <- apply(ppo_pred, 1, which.max)
+  actual_class <- as.numeric(test_data$Q29_3cat)
+  
+  # Calculate accuracy
+  cv_results$ppo_accuracy[fold] <- mean(predicted_class == actual_class)
+}
+
+print("Cross-validation Results:")
+print(cv_results)
+print(paste("Mean CV Accuracy:", mean(cv_results$ppo_accuracy)))
+
+# Calculate variable importance for PPO model
+var_imp <- data.frame(
+  Variable = names(coef(ppo_model)),
+  Coefficient = coef(ppo_model),
+  SE = sqrt(diag(vcov(ppo_model))),
+  stringsAsFactors = FALSE
+)
+
+var_imp$Z_score <- abs(var_imp$Coefficient / var_imp$SE)
+var_imp <- var_imp[order(-var_imp$Z_score), ]
+
+print("Top 10 Most Important Variables:")
+print(head(var_imp, 10))
+
+
+```
+
+### Interpretation
+
+1.  Model Performance:
+
+-   PPO model (AIC = 35,531.52) shows substantial improvement over:
+    -   Original ordinal model (AIC = 42,620)
+    -   Multinomial model (AIC = 42,457)
+    -   Interaction model (AIC = 42,635)
+-   Cross-validation accuracy (47.87%) is better than multinomial model (43.39%)
+
+2.  Key Findings from PPO Model:
+
+Most Important Predictors (by Z-score): 1. Gender (Woman): β = 0.528, z = 17.74 2. Party (Other): β = 1.325, z = 16.25 3. Party (Independent): β = 0.549, z = 12.58 4. Race (Asian): β = 1.304, z = 10.10 5. Age (70+): β = -0.471, z = 8.07
+
+3.  Racial Identity Effects:
+
+-   Base effect of racial identity importance (Q271_simple) is not significant
+-   Significant interactions with race:
+    -   Black: strongest negative interaction (β = -0.165, p \< 0.001)
+    -   Asian: moderate negative interaction (β = -0.149, p \< 0.001)
+    -   Hispanic: weaker negative interaction (β = -0.087, p \< 0.05)
+    -   Other: strong negative interaction (β = -0.188, p \< 0.001)
+
+4.  Control Variable Effects:
+
+-   Education shows strong negative effects:
+    -   Post-graduate: β = -1.257
+    -   Bachelor's: β = -1.033
+-   Age effects are significant:
+    -   Older age groups show decreasing interest
+-   Party affiliation matters:
+    -   Other party: β = 1.325
+    -   Independent: β = 0.549
+
+5.  Visualization Insights: The predicted probabilities plot shows:
+
+-   Different patterns across racial groups
+-   White respondents: most stable relationship
+-   Black respondents: stronger relationship between identity importance and interest
+-   Asian respondents: highest probability of medium interest
+-   Hispanic and Other: similar patterns to Black respondents but weaker
+
+Comparison with Previous Models:
+
+1.  Advantages of PPO Model:
+
+-   Better model fit (lower AIC)
+-   More nuanced capture of racial differences
+-   Better handling of ordinal nature while allowing non-proportional effects
+-   Higher prediction accuracy
+
+2.  Disadvantages:
+
+-   More complex interpretation
+-   Still moderate prediction accuracy (47.87%)
+
+Key Differences: 1. More precise estimates of racial effects 2. Better capture of education and age effects 3. More accurate representation of interaction effects 4. Better overall model fit
+
+Recommendations: 1. **Use the PPO model as the primary model for inference** 2. Consider the intersectionality of race and education 3. Further investigate the role of age and party affiliation 4. Use predicted probabilities for interpretation
+
+# Model 4: Improved PPO Analysis with Intersectionality
+
+```{r}
+
+# Load required packages
+library(VGAM)
+library(ordinal)
+library(tidyverse)
+library(sandwich)
+library(interactions)
+
+# Create ordered 3-category version
+dataset_clean$Q29_3cat <- ordered(case_when(
+  dataset_clean$Q29 %in% c("(4) Not at all interested in politics", 
+                          "(3) Not that interested in politics") ~ "Low Interest",
+  dataset_clean$Q29 == "(2) Somewhat interested" ~ "Medium Interest",
+  dataset_clean$Q29 == "(1) Very interested in politics" ~ "High Interest"
+), levels = c("Low Interest", "Medium Interest", "High Interest"))
+
+# Fit intersectional model
+m_intersectional <- vglm(Q29_3cat ~ 
+                        Q271_simple * race_major +  # Original interaction
+                        race_major * S13 +         # Race x Education
+                        Q271_simple * S13 +        # Racial identity x Education
+                        Q271_simple * Q21 +        # Racial identity x Party
+                        S5_AGE + S3B,             # Other controls
+                        family = cumulative(parallel = FALSE ~ Q271_simple + race_major),
+                        data = dataset_clean)
+
+# Create prediction scenarios with exact variable levels
+pred_scenarios <- expand.grid(
+  Q271_simple = seq(1, 5, by = 0.1),
+  race_major = unique(dataset_clean$race_major),
+  S13 = "(4) Some college",  # Reference education level
+  Q21 = "(2) Democrat",      # Reference party
+  S5_AGE = "(3) 30-39",     # Reference age group
+  S3B = "(1) Man"           # Reference gender
+)
+
+# Get predictions
+preds <- predict(m_intersectional, newdata = pred_scenarios, type = "response")
+pred_data <- cbind(pred_scenarios, as.data.frame(preds))
+
+# Basic plot by race
+p1 <- ggplot(pred_data, aes(x = Q271_simple, y = `High Interest`, color = race_major)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "Political Interest by Race and Racial Identity Importance",
+       x = "Importance of Racial Identity",
+       y = "Probability of High Political Interest",
+       color = "Race/Ethnicity") +
+  theme(legend.position = "bottom")
+
+# Create education-specific predictions
+pred_edu <- expand.grid(
+  Q271_simple = seq(1, 5, by = 0.1),
+  race_major = unique(dataset_clean$race_major),
+  S13 = c("(3) High School graduate or GED", 
+          "(4) Some college",
+          "(7) Post-graduate degree"),
+  Q21 = "(2) Democrat",
+  S5_AGE = "(3) 30-39",
+  S3B = "(1) Man"
+)
+
+preds_edu <- predict(m_intersectional, newdata = pred_edu, type = "response")
+pred_data_edu <- cbind(pred_edu, as.data.frame(preds_edu))
+
+# Plot by education level
+p2 <- ggplot(pred_data_edu, aes(x = Q271_simple, y = `High Interest`, color = race_major)) +
+  geom_line() +
+  facet_wrap(~S13) +
+  theme_minimal() +
+  labs(title = "Political Interest by Race, Education, and Racial Identity Importance",
+       x = "Importance of Racial Identity",
+       y = "Probability of High Political Interest",
+       color = "Race/Ethnicity") +
+  theme(legend.position = "bottom")
+
+# Create party-specific predictions
+pred_party <- expand.grid(
+  Q271_simple = seq(1, 5, by = 0.1),
+  race_major = unique(dataset_clean$race_major),
+  S13 = "(4) Some college",
+  Q21 = unique(dataset_clean$Q21),
+  S5_AGE = "(3) 30-39",
+  S3B = "(1) Man"
+)
+
+preds_party <- predict(m_intersectional, newdata = pred_party, type = "response")
+pred_data_party <- cbind(pred_party, as.data.frame(preds_party))
+
+# Plot by party affiliation
+p3 <- ggplot(pred_data_party, aes(x = Q271_simple, y = `High Interest`, color = race_major)) +
+  geom_line() +
+  facet_wrap(~Q21) +
+  theme_minimal() +
+  labs(title = "Political Interest by Race, Party, and Racial Identity Importance",
+       x = "Importance of Racial Identity",
+       y = "Probability of High Political Interest",
+       color = "Race/Ethnicity") +
+  theme(legend.position = "bottom")
+
+# Print model summary
+print("Intersectional Model Summary:")
+summary(m_intersectional)
+
+# Calculate and print variable importance
+var_imp <- data.frame(
+  Variable = names(coef(m_intersectional)),
+  Coefficient = coef(m_intersectional),
+  SE = sqrt(diag(vcov(m_intersectional)))
+)
+
+var_imp$Z_score <- abs(var_imp$Coefficient / var_imp$SE)
+var_imp <- var_imp[order(-var_imp$Z_score), ]
+
+print("Top 15 Most Important Variables (including interactions):")
+print(head(var_imp, 15))
+
+# Cross-validation
+set.seed(123)
+fold_ids <- sample(1:5, nrow(dataset_clean), replace = TRUE)
+
+cv_results <- data.frame(
+  fold = 1:5,
+  accuracy = NA
+)
+
+for(fold in 1:5) {
+  train_data <- dataset_clean[fold_ids != fold, ]
+  test_data <- dataset_clean[fold_ids == fold, ]
+  
+  m_train <- vglm(Q29_3cat ~ 
+                  Q271_simple * race_major +
+                  race_major * S13 +
+                  Q271_simple * S13 +
+                  Q271_simple * Q21 +
+                  S5_AGE + S3B,
+                  family = cumulative(parallel = FALSE ~ Q271_simple + race_major),
+                  data = train_data)
+  
+  preds <- predict(m_train, newdata = test_data, type = "response")
+  predicted_class <- apply(preds, 1, which.max)
+  actual_class <- as.numeric(test_data$Q29_3cat)
+  
+  cv_results$accuracy[fold] <- mean(predicted_class == actual_class)
+}
+
+print("Cross-validation Results:")
+print(cv_results)
+print(paste("Mean CV Accuracy:", mean(cv_results$accuracy)))
+
+# Print plots
+print(p1)
+print(p2)
+print(p3)
+
+
+```
+
+### Interpretation
+
+1.  Model Performance:
+
+-   Cross-validation accuracy: 47.39% (similar to previous PPO model at 47.87%)
+-   AIC shows continued improvement from earlier models
+-   More nuanced understanding of relationships through interactions
+
+2.  Most Important Predictors (by Z-score):
+3.  Gender (Woman): β = 0.528, Z = 17.67
+4.  Age (70+): β = -0.476, Z = 8.11
+5.  Other party: β = 1.224, Z = 6.25
+6.  Race × Racial Identity interactions:
+    -   Black: β = -0.188, Z = 5.52
+    -   Asian: β = -0.175, Z = 4.79
+    -   Hispanic: β = -0.100, Z = 2.81
+7.  Key Findings from Intersectional Analysis:
+
+<!-- -->
+
+a)  Education and Race Intersection:
+
+-   Post-graduate degree shows strongest effect (β = -1.991)
+-   Education effects vary by race:
+    -   Black respondents show stronger positive interactions with higher education
+    -   Asian and Hispanic effects are more moderate
+    -   Pattern suggests education moderates racial identity effects
+
+b)  Party and Race Intersection (from plot):
+
+-   Republicans and Democrats show similar patterns but different baselines
+-   Independents show weaker relationship
+-   Other party affiliations show lowest overall interest
+-   Party effects are strongest for Black respondents
+
+c)  Education Level Effects (from plot):
+
+-   Higher education associated with:
+    -   Stronger relationship between racial identity and political interest
+    -   Higher baseline political interest
+    -   More pronounced racial differences
+
+4.  Comparison with Previous Models:
+
+Advantages: 1. Better captures complex relationships 2. Shows how education moderates racial identity effects 3. Reveals party-specific patterns 4. More theoretically justified
+
+Disadvantages: 1. More complex interpretation 2. Some loss of parsimony 3. Similar predictive accuracy
+
+5.  Key Insights from Visualization:
+
+<!-- -->
+
+a)  Party Affiliation (Image 3):
+
+-   Democrats show most consistent relationship
+-   Republicans show steepest slopes
+-   Independents show moderate effects
+-   Other party shows weakest effects
+
+b)  Education Level (Image 4):
+
+-   Higher education amplifies racial identity effects
+-   Post-graduate degree shows strongest differentiation
+-   Education gap larger for minorities

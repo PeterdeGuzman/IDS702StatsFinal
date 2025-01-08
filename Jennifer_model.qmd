@@ -1380,4 +1380,6 @@ b)  Education Level (Image 4):
 
 -   Higher education amplifies racial identity effects
 -   Post-graduate degree shows strongest differentiation
+
 -   Education gap larger for minorities
+

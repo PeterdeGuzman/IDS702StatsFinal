@@ -540,7 +540,7 @@ Note: Some variable levels are excluded due to filtering for significant variabl
 ## Reference Levels Table
 
 | Variable Group | Reference Level |
-|----|----|
+|------------------------------------|------------------------------------|
 | 1\. Education | No college experience |
 | 2\. Gender | Man |
 | 3\. Age | 18-29 years old |

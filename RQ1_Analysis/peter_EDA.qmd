@@ -1,0 +1,398 @@
+---
+title: "peter_EDA"
+format: html
+author: "Peter de Guzman"
+editor: visual
+---
+
+Conducting EDA on the 2020 CMPS dataset for Research Question 1
+
+# Packages
+
+```{r}
+library(tidyverse)
+library(dplyr)
+```
+
+# Loading data
+
+```{r, echo=FALSE}
+rm(list=ls())
+file_path <- "/Users/pdeguz01/Documents/git/Data/2020 CMPS/DS0001/39096-0001-Data.rda"
+# Load data 
+load(file_path)
+data <- da39096.0001
+rm(da39096.0001)
+```
+
+# Selecting Variables
+
+Need to include the outcome variable, which is an ordinal variable Q29. Main predictor variable is Q271 "How important is being \[RACIAL GROUP\] to your identity?"
+
+```{r}
+required_cols <- c("Q29", # Outcome Variable; interest in politics
+                   "Q271", # Predictor Variable; importance of race to identity
+                   "S2_RACE_PRIME", # Race
+                   "S3", # Orientation
+                   "S3B", # Gender
+                   "S5_AGE", # Age Category
+                   "S13", # Educational Attainment
+                   "S14", # Community Type
+                   "S7", # Nativity
+                   "Q21", # Party ID
+                   "S2_M", # Multiracial
+                   
+                   # Religion-related variables
+                   "Q58R1",            # Catholic
+                   "Q58R2",            # Protestant
+                   "Q58R3",            # Other Christian
+                   "Q58R4",            # Jewish
+                   "Q58R5",            # Muslim
+                   "Q58R6",            # Hindu
+                   "Q58R7",            # Buddhist
+                   "Q58R8",            # Mormon/LDS
+                   "Q58R9",            # Folk Religion
+                   "Q58R10",           # Daoist
+                   "Q58R11",           # Shamanism
+                   "Q58R12",           # Ancestral Religion
+                   "Q58R13",           # Spiritual but not religious
+                   "Q58R14",           # Atheist
+                   "Q58R15",            # Agnostic
+                   
+                   # Variables capturing experiences with racism
+                   "Q627", # Treated unfairly or discriminated against ,
+                   "Q628", # Location of discrimination
+                   "Q629R1" # Unfair treatment due to racial background/ethnicity
+                   )
+                 
+                   
+                   
+# Create new df
+data_filtered <- data[, required_cols]
+head(data_filtered)
+
+
+
+```
+
+# Cleaning Variables
+
+```{r}
+# Convert the required columns to factors
+data_filtered[required_cols] <- lapply(data_filtered[required_cols], as.factor)
+
+# Verify that the columns have been successfully converted to factors
+str(data_filtered[required_cols])
+head(data_filtered)
+```
+
+Cleaning and Recoding Religion Variables
+
+```{r}
+# Convert individual religion columns to numeric
+for (i in 1:15) {
+  col_name <- paste0("Q58R", i, "_numeric")
+  data_filtered[[col_name]] <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", data_filtered[[paste0("Q58R", i)]]))
+}
+
+# Create a new Religion variable
+data_filtered$Religion <- "None"
+data_filtered$Religion[data_filtered$Q58R1_numeric == 1] <- "Catholic"
+data_filtered$Religion[data_filtered$Q58R2_numeric == 1] <- "Protestant"
+data_filtered$Religion[data_filtered$Q58R3_numeric == 1] <- "Other Christian"
+data_filtered$Religion[data_filtered$Q58R4_numeric == 1] <- "Jewish"
+data_filtered$Religion[data_filtered$Q58R5_numeric == 1] <- "Muslim"
+data_filtered$Religion[data_filtered$Q58R6_numeric == 1] <- "Hindu"
+data_filtered$Religion[data_filtered$Q58R7_numeric == 1] <- "Buddhist"
+data_filtered$Religion[data_filtered$Q58R8_numeric == 1] <- "Mormon/LDS"
+data_filtered$Religion[data_filtered$Q58R9_numeric == 1] <- "Folk Religion"
+data_filtered$Religion[data_filtered$Q58R10_numeric == 1] <- "Daoist"
+data_filtered$Religion[data_filtered$Q58R11_numeric == 1] <- "Shamanism"
+data_filtered$Religion[data_filtered$Q58R12_numeric == 1] <- "Ancestral Religion"
+data_filtered$Religion[data_filtered$Q58R13_numeric == 1] <- "Spiritual but not religious"
+data_filtered$Religion[data_filtered$Q58R14_numeric == 1] <- "Atheist"
+data_filtered$Religion[data_filtered$Q58R15_numeric == 1] <- "Agnostic"
+
+# Convert Religion to a factor
+data_filtered$Religion <- factor(data_filtered$Religion,
+                               levels = c("Catholic", "Protestant", "Other Christian", "Jewish", "Muslim",
+                                          "Hindu", "Buddhist", "Mormon/LDS", "Folk Religion",
+                                          "Daoist", "Shamanism", "Ancestral Religion",
+                                          "Spiritual but not religious", "Atheist", "Agnostic", "None"))
+
+# Create a table of counts for the new Religion variable
+table(data_filtered$Religion)
+
+
+```
+
+Removing deprecated Religion variables
+
+```{r}
+# Remove redundant religion columns (Q58R1 to Q58R15 and their numeric versions)
+redundant_cols <- c(
+  "Q58R1", "Q58R2", "Q58R3", "Q58R4", "Q58R5", "Q58R6", "Q58R7", "Q58R8", 
+  "Q58R9", "Q58R10", "Q58R11", "Q58R12", "Q58R13", "Q58R14", "Q58R15",
+  "Q58R1_numeric", "Q58R2_numeric", "Q58R3_numeric", "Q58R4_numeric", 
+  "Q58R5_numeric", "Q58R6_numeric", "Q58R7_numeric", "Q58R8_numeric", 
+  "Q58R9_numeric", "Q58R10_numeric", "Q58R11_numeric", "Q58R12_numeric", 
+  "Q58R13_numeric", "Q58R14_numeric", "Q58R15_numeric"
+)
+
+# Remove redundant columns from the dataset
+dataset_clean <- data_filtered[, !(names(data_filtered) %in% redundant_cols)]
+
+# Take a look at the updated dataset
+head(dataset_clean)
+```
+
+Cleaning and Recoding Other Variables
+
+```{r}
+dataset_clean <- dataset_clean %>% mutate(educ = case_when(S13 == "(1) Grades 1-8" ~ "No college experience",
+                                                           S13 == "(2) Some High School, but did not graduate" ~ "No college experience",
+                                                           S13 == "(3) High School graduate or GED" ~ "No college experience",
+                                                           S13 == "(4) Some college" ~ "Some college experience",
+                                                           S13 == "(5) Associates, 2-year degree" ~ "College graduate",
+                                                           S13 == "(6) Bachelors, 4-year degree" ~ "College graduate",
+                                                           S13 == "(7) Post-graduate degree" ~ "College graduate"),
+                                          sex_orientation = case_when(S3 == "(01) Straight, that is, not gay or lesbian" ~ "Straight",
+                                                                     S3 == "(02) Gay or lesbian" ~ "Queer",
+                                                                     S3 == "(03) Bisexual" ~ "Queer",
+                                                                     S3 == "(04) Something else (Specify)" ~ "Queer",
+                                                                     S3 == "(88) Refused" ~ "Refused/Don't Know",
+                                                                     S3 == "(99) I don" ~ "Refused/Don't Know"),
+                                          rural = case_when(S14 == "(1) Large urban area" ~ "Urban/suburban",
+                                                            S14 == "(2) Large suburb near large city" ~ "Urban/suburban",
+                                                            S14 == "(3) Small suburb near small town or city" ~ "Urban/suburban",
+                                                            S14 == "(4) Small town or small city" ~ "Urban/suburban",
+                                                            S14 == "(5) Rural area" ~ "Rural"),
+                                          white = case_when(S2_RACE_PRIME == "(1) White" ~ "White", 
+                                                            S2_RACE_PRIME == "(2) Hispanic or Latino" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(3) Black or African American" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(4) Asian American" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(5) American Indian/Native American" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(7) Native Hawaiian" ~ "Non-White",
+                                                            S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "Non-White"),
+                                          race_recoded = case_when(S2_RACE_PRIME == "(1) White" ~ "White",
+                                                                   S2_RACE_PRIME == "(2) Hispanic or Latino" ~ "Latino",
+                                                                   S2_RACE_PRIME == "(3) Black or African American" ~ "Black",
+                                                                   S2_RACE_PRIME == "(4) Asian American" ~ "Asian American",
+                                                                   S2_RACE_PRIME == "(5) American Indian/Native American" ~ "AIAN",
+                                                                   S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Arab/MENA",
+                                                                   S2_RACE_PRIME == "(7) Native Hawaiian" ~ "NHPI",
+                                                                   S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "NHPI"),
+                                          age_recoded = case_when(S5_AGE == "(1) 16-17" ~ "16-17",
+                                                                  S5_AGE == "(2) 18-29" ~ "18-29",
+                                                                  S5_AGE == "(3) 30-39" ~ "30-39",
+                                                                  S5_AGE == "(4) 40-49" ~ "40-49",
+                                                                  S5_AGE == "(5) 50-59" ~ "50-59",
+                                                                  S5_AGE == "(6) 60-69" ~ "60-69",
+                                                                  S5_AGE == "(7) 70 +" ~ "70+"))
+
+dataset_clean <- dataset_clean %>% mutate(race_recoded = factor(dataset_clean$race_recoded, levels = c("White", "Black", "Asian American", "Latino", "AIAN", "NHPI", "Arab/MENA")),
+                                         age_recoded = factor(dataset_clean$age_recoded, levels = c("18-29", "30-39", "40-49", "50-59", "60-69", "70+")),
+                                         educ = factor(dataset_clean$educ, levels = c("No college experience", "Some college experience", "College graduate")),
+                                         white = factor(dataset_clean$white, levels = c("White", "Non-White")),
+                                         rural = factor(dataset_clean$rural, levels= c("Rural", "Urban/suburban")),
+                                         sex_orientation = factor(dataset_clean$sex_orientation, levels = c("Straight", "Queer", "Refused/Don't Know")))
+
+
+
+
+```
+
+# Analysis of Missing Data
+
+```{r}
+# Check the number of missing values for each variable
+missing_summary <- colSums(is.na(dataset_clean))
+missing_summary
+
+# Finding proportion of Missing Data
+missing_proportion <- colSums(is.na(dataset_clean)) / nrow(dataset_clean)
+missing_proportion
+
+# Finding total missing data proportion
+overall_missing <- sum(is.na(dataset_clean)) / (nrow(dataset_clean) * ncol(dataset_clean))
+overall_missing
+```
+
+There is overall 8.3% missing values across all cells in this dataset. This is largely driven by two variables:
+
+-   Q628: (IF S7=2 or 3 & Q627=1\] Did you experience that discrimination here in the United States, or in your home country?)
+
+-   and Q629R1: In your opinion, were you unfairly treated because of your (Racial background or ethnicity)
+
+For Q628, there are 15,709 (89.53%) missing values. For Q629R1 there are 9,180 (52.32%) missing values. We may need to consider not including these variables, because they may reduce our usable sample size.
+
+# Save cleaned data
+
+```{r}
+save(dataset_clean, file = "/Users/pdeguz01/Documents/git/Data/2020 CMPS/Output/2020cmps_clean.RData")
+
+```
+
+# Looking at Outcome and main Predictor variable
+
+```{r}
+# Outcome - Q29
+table(dataset_clean$Q29) / nrow(dataset_clean)
+# Main Predictor - Q271
+table(dataset_clean$Q271) / nrow(dataset_clean)
+```
+
+Table of Q29 for full sample - Interest in Politics
+
+| Level of Interest in Politics     | Percent of Total Respondents |
+|-----------------------------------|------------------------------|
+| Very interested in politics       | 24.54%                       |
+| Somewhat interested               | 43.39%                       |
+| Not that interested in politics   | 20.76%                       |
+| Not at all interested in politics | 11.31%                       |
+
+Table of Q271 for full sample - How important is being a member of \[RACIAL GROUP\] to your identity?
+
+| Importance of Race to Identity | Percent of Total Respondents |
+|--------------------------------|------------------------------|
+| Extremely Important            | 31.27%                       |
+| Very Important                 | 24.68%                       |
+| Moderately Important           | 21.40%                       |
+| Slightly Important             | 8.58%                        |
+| Not at all important           | 14.07%                       |
+
+# Counts and proportion for every variable
+
+```{r}
+lapply(dataset_clean[, -1], table)
+
+```
+
+# Creating summary table
+
+```{r}
+
+# Function to create a summary table with counts and proportions
+create_summary_table <- function(variable, var_name) {
+  counts <- table(variable)
+  if (length(counts) == 0) {
+    return(data.frame(Variable = character(), Level = character(), Count = numeric(), Proportion = numeric()))
+  }
+  proportions <- prop.table(counts)
+  summary_df <- data.frame(
+    Variable = var_name,
+    Level = names(counts),
+    Count = as.numeric(counts),
+    Proportion = round(as.numeric(proportions), 4)
+  )
+  return(summary_df)
+}
+
+# Apply the function to each variable of interest in the cleaned dataset
+categorical_vars <- names(dataset_clean)
+
+# Initialize an empty data frame to store all summary tables
+full_summary_table <- data.frame(Variable = character(), Level = character(), Count = numeric(), Proportion = numeric())
+
+# Iterate through each variable and generate the summary table
+for (var in categorical_vars) {
+  summary_table <- create_summary_table(dataset_clean[[var]], var)
+  full_summary_table <- rbind(full_summary_table, summary_table)
+}
+
+# Print the full summary table
+full_summary_table
+
+```
+
+| **Variable** | **Level** | **Count** | **Proportion** |
+|----|----|----|----|
+| Q29 | \(1\) Very interested in politics | 4306 | 25% |
+| Q29 | \(2\) Somewhat interested | 7612 | 43% |
+| Q29 | \(3\) Not that interested in politics | 3643 | 21% |
+| Q29 | \(4\) Not at all interested in politics | 1984 | 11% |
+| Q271 | \(1\) Extremely important | 5487 | 31% |
+| Q271 | \(2\) Very important | 4330 | 25% |
+| Q271 | \(3\) Moderately important | 3754 | 21% |
+| Q271 | \(4\) Slightly important | 1505 | 9% |
+| Q271 | \(5\) Not at all important | 2469 | 14% |
+| S2_RACE_PRIME | \(1\) White | 3923 | 22% |
+| S2_RACE_PRIME | \(2\) Hispanic or Latino | 3873 | 22% |
+| S2_RACE_PRIME | \(3\) Black or African American | 4613 | 26% |
+| S2_RACE_PRIME | \(4\) Asian American | 3826 | 22% |
+| S2_RACE_PRIME | \(5\) American Indian/Native American | 713 | 4% |
+| S2_RACE_PRIME | \(6\) Arab, Middle Eastern or North African | 226 | 1% |
+| S2_RACE_PRIME | \(7\) Native Hawaiian | 106 | 1% |
+| S2_RACE_PRIME | \(8\) Not Hawaiian, but other Pacific Islander | 255 | 1% |
+| S3 | \(01\) Straight, that is, not gay or lesbian | 15404 | 88% |
+| S3 | \(02\) Gay or lesbian | 594 | 3% |
+| S3 | \(03\) Bisexual | 937 | 5% |
+| S3 | \(04\) Something else (Specify) | 286 | 2% |
+| S3 | \(88\) Refused | 195 | 1% |
+| S3 | \(99\) I don | 129 | 1% |
+| S3B | \(1\) Man | 7431 | 42% |
+| S3B | \(2\) Woman | 9932 | 57% |
+| S3B | \(3\) Non-binary | 148 | 1% |
+| S3B | \(4\) Something else (Specify) | 34 | 0% |
+| S5_AGE | \(2\) 18-29 | 4026 | 23% |
+| S5_AGE | \(3\) 30-39 | 3614 | 21% |
+| S5_AGE | \(4\) 40-49 | 2783 | 16% |
+| S5_AGE | \(5\) 50-59 | 2717 | 15% |
+| S5_AGE | \(6\) 60-69 | 2745 | 16% |
+| S5_AGE | \(7\) 70 + | 1660 | 9% |
+| S13 | \(1\) Grades 1-8 | 126 | 1% |
+| S13 | \(2\) Some High School, but did not graduate | 596 | 3% |
+| S13 | \(3\) High School graduate or GED | 3227 | 18% |
+| S13 | \(4\) Some college | 3689 | 21% |
+| S13 | \(5\) Associates, 2-year degree | 2017 | 12% |
+| S13 | \(6\) Bachelors, 4-year degree | 4625 | 26% |
+| S13 | \(7\) Post-graduate degree | 3265 | 19% |
+| S7 | \(1\) United States | 13297 | 76% |
+| S7 | \(2\) Another country | 3962 | 23% |
+| S7 | \(3\) on the Island of Puerto Rico | 286 | 2% |
+| Q21 | \(1\) Republican | 3238 | 18% |
+| Q21 | \(2\) Democrat | 8318 | 47% |
+| Q21 | \(3\) Independent | 5174 | 29% |
+| Q21 | \(4\) Other party | 815 | 5% |
+| S2_M | \(1\) Yes | 4671 | 27% |
+| S2_M | \(2\) No | 12874 | 73% |
+| Q627 | \(1\) Yes | 8365 | 48% |
+| Q627 | \(2\) No | 9180 | 52% |
+| Q628 | \(1\) In the United States | 1404 | 76% |
+| Q628 | \(2\) In my country of origin | 153 | 8% |
+| Q628 | \(3\) In both places | 279 | 15% |
+| Q629R1 | \(0\) NO TO: Racial background or ethnicity | 2947 | 35% |
+| Q629R1 | \(1\) Racial background or ethnicity | 5418 | 65% |
+| Religion | Catholic | 3702 | 21% |
+| Religion | Protestant | 4045 | 23% |
+| Religion | Other Christian | 1826 | 10% |
+| Religion | Jewish | 264 | 2% |
+| Religion | Muslim | 524 | 3% |
+| Religion | Hindu | 491 | 3% |
+| Religion | Buddhist | 464 | 3% |
+| Religion | Mormon/LDS | 112 | 1% |
+| Religion | Folk Religion | 27 | 0% |
+| Religion | Daoist | 21 | 0% |
+| Religion | Shamanism | 26 | 0% |
+| Religion | Ancestral Religion | 77 | 0% |
+| Religion | Spiritual but not religious | 1288 | 7% |
+| Religion | Atheist | 820 | 5% |
+| Religion | Agnostic | 1084 | 6% |
+| Religion | None | 2774 | 16% |
+| educ | College graduate | 9907 | 56% |
+| educ | No college experience | 3949 | 23% |
+| educ | Some college experience | 3689 | 21% |
+| sex_orientaton | Queer | 1817 | 10% |
+| sex_orientation | Refused/Don't Know | 324 | 2% |
+| sex_orientation | Straight | 15404 | 88% |
+| rural | Rural | 1453 | 8% |
+| rural | Urban/suburban | 16092 | 92% |
+|  |  |  |  |
+|  |  |  |  |
+|  |  |  |  |
+|  |  |  |  |
+|  |  |  |  |
+|  |  |  |  |
+|  |  |  |  |
+|  |  |  |  |

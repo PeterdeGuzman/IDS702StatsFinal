@@ -1,0 +1,946 @@
+---
+title: "The Effects of Racial Identity and Discrimination on Political Participation and Political Attitudes"
+author: "Peter de Guzman, Jennifer Li, Nakiyah Dhariwala, Sizhe Chen"
+format: pdf
+date: 2024-12-14
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,   # Suppress messages
+  warning = FALSE    # Suppress warnings
+)
+```
+
+```{r echo = FALSE}
+# Libraries
+library(tidyverse)  
+library(pROC)
+library(vcd)
+library(car)
+library(MASS) # package for model
+library(caret) # package for confusion matrix
+library(janitor)
+library(brant)
+library(knitr)
+library(gt)
+```
+
+```{r echo = FALSE, results = FALSE}
+file_path <- "//Users/pdeguz01/Documents/git/Data/2020 CMPS/DS0001/39096-0001-Data.rda"
+
+
+
+load(file_path)          # Load the RDA file
+ls()                     # List objects loaded into the environment
+dataset <- da39096.0001  # Access the dataset
+
+```
+
+```{r echo = FALSE, results = FALSE}
+# Define the required columns
+required_cols <- c(
+  # Outcome Variable: Stopping discrimination against racial/ethnic minorities
+  "Q1R5", 
+  
+  # Outcome Variable: Level of Political Interest
+  "Q29",
+  
+  # Predictor: Importance of Racial Belonging
+  "Q271",
+  
+  # Predictor: Party ID
+  "Q21",
+
+  # Demographic Variables
+  "S2_RACE_PRIME",   # Primary Race
+  "S3",              # SexualOrientation
+  "S3B",             # Gender
+  "S5_AGE",          # Age categories
+  "S13",             # Highest level of education
+  "S14",             # Community lived in
+
+  # Variables capturing experiences with racism
+  "Q629R1",          # Unfair treatment due to racial background/ethnicity
+  "Q629R2",          # Unfair treatment due to skin color
+  "Q629R3",          # Unfair treatment due to gender
+  "Q629R4",          # Unfair treatment due to sexuality/orientation
+  "Q629R5",          # Unfair treatment due to immigration status
+  "Q629R6",          # Unfair treatment due to religion
+  "Q629R7",          # Unfair treatment due to accent
+
+  "Q627",            # Treated unfairly or discriminated against because of your race, ethnicity, gender, sexuality, being an immigrant, religious heritage or having an accent?
+  "Q633",            # Discrimination impact on life satisfaction
+
+  # Perceptions of discrimination
+  "Q619_Q626R1",     # Perceptions of discrimination against Whites
+  "Q619_Q626R2",     # Perceptions of discrimination against Blacks
+  "Q619_Q626R3",     # Perceptions of discrimination against Asian Americans
+  "Q619_Q626R4",     # Perceptions of discrimination against Native Americans
+  "Q619_Q626R5",     # Perceptions of discrimination against Immigrants
+  "Q619_Q626R6",     # Perceptions of discrimination against Latinos
+  "Q619_Q626R7",     # Perceptions of discrimination against GaysAndLesbians
+  "Q619_Q626R8"      # Perceptions of discrimination against Muslims
+)
+
+```
+
+```{r echo=FALSE, results=FALSE}
+# Create a new dataframe with selected variables
+dataset_new <- dataset[, required_cols]
+
+# Recode the outcome variable 'Q1R5' for readability
+dataset_new$Q1R5 <- factor(
+  ifelse(
+    dataset_new$Q1R5 == "(0) NO TO: Stopping discrimination against racial/ethnic minorities", 
+    "Not important",
+    "Important"  # Remaining cases are "Important"
+  ),
+  levels = c("Not important", "Important") # Define factor levels
+)
+
+# Define the columns for perceptions of discrimination
+perception_cols <- c(
+  "Q619_Q626R1",  # Perceptions of discrimination against Whites
+  "Q619_Q626R2",  # Perceptions of discrimination against Blacks
+  "Q619_Q626R3",  # Perceptions of discrimination against Asian Americans
+  "Q619_Q626R4",  # Perceptions of discrimination against Native Americans
+  "Q619_Q626R5",  # Perceptions of discrimination against Immigrants
+  "Q619_Q626R6",  # Perceptions of discrimination against Latinos
+  "Q619_Q626R7",  # Perceptions of discrimination against GaysAndLesbians
+  "Q619_Q626R8",  # Perceptions of discrimination against Muslims
+  "Q633"          # Discrimination impact on life satisfaction
+)
+
+# Recode 'Don' as 'Don't know' and ensure columns remain factors
+dataset_new[perception_cols] <- lapply(dataset_new[perception_cols], function(x) {
+  x <- as.character(x)  # Temporarily convert to character for recoding
+  x <- ifelse(x == "(5) Don", "(5) Don't know", x)  # Recode 'Don' to 'Don't know'
+  factor(x)  # Convert back to factor
+})
+
+# Define required columns to convert to factors (if not already defined)
+# Assuming `required_cols` is previously defined; otherwise, specify explicitly
+dataset_new[required_cols] <- lapply(dataset_new[required_cols], as.factor)
+
+# Verify the structure of the dataset
+str(dataset_new[required_cols])
+
+# Display the first few rows to check the changes
+head(dataset_new)
+```
+
+```{r, echo=FALSE, results=FALSE}
+# Data Cleaning and Recoding for dataset_new
+dataset_clean_allvars <- dataset_new |> 
+  mutate(
+    # Education recoding
+    educ = case_when(
+      S13 == "(1) Grades 1-8" ~ "No college experience",
+      S13 == "(2) Some High School, but did not graduate" ~ "No college experience",
+      S13 == "(3) High School graduate or GED" ~ "No college experience",
+      S13 == "(4) Some college" ~ "Some college experience",
+      S13 == "(5) Associates, 2-year degree" ~ "College graduate",
+      S13 == "(6) Bachelors, 4-year degree" ~ "College graduate",
+      S13 == "(7) Post-graduate degree" ~ "College graduate"
+    ),
+    # Sexual orientation recoding
+    sex_orientation = case_when(
+      S3 == "(01) Straight, that is, not gay or lesbian" ~ "Straight",
+      S3 == "(02) Gay or lesbian" ~ "Queer",
+      S3 == "(03) Bisexual" ~ "Queer",
+      S3 == "(04) Something else (Specify)" ~ "Queer",
+      S3 == "(88) Refused" ~ "Refused/Don't Know",
+      S3 == "(99) I don" ~ "Refused/Don't Know"
+    ),
+    # Urban vs rural recoding
+    rural = case_when(
+      S14 == "(1) Large urban area" ~ "Urban/suburban",
+      S14 == "(2) Large suburb near large city" ~ "Urban/suburban",
+      S14 == "(3) Small suburb near small town or city" ~ "Urban/suburban",
+      S14 == "(4) Small town or small city" ~ "Urban/suburban",
+      S14 == "(5) Rural area" ~ "Rural"
+    ),
+    # Race recoding
+    race_recoded = case_when(
+      S2_RACE_PRIME == "(1) White" ~ "White",
+      S2_RACE_PRIME == "(2) Hispanic or Latino" ~ "Latino",
+      S2_RACE_PRIME == "(3) Black or African American" ~ "Black",
+      S2_RACE_PRIME == "(4) Asian American" ~ "Asian American",
+      S2_RACE_PRIME == "(5) American Indian/Native American" ~ "AIAN",
+      S2_RACE_PRIME == "(6) Arab, Middle Eastern or North African" ~ "Arab/MENA",
+      S2_RACE_PRIME == "(7) Native Hawaiian" ~ "NHPI",
+      S2_RACE_PRIME == "(8) Not Hawaiian, but other Pacific Islander" ~ "NHPI"
+    ),
+    # Age recoding
+    age_recoded = case_when(
+      S5_AGE == "(1) 16-17" ~ "16-17",
+      S5_AGE == "(2) 18-29" ~ "18-29",
+      S5_AGE == "(3) 30-39" ~ "30-39",
+      S5_AGE == "(4) 40-49" ~ "40-49",
+      S5_AGE == "(5) 50-59" ~ "50-59",
+      S5_AGE == "(6) 60-69" ~ "60-69",
+      S5_AGE == "(7) 70 +" ~ "70+"
+    )
+  ) |>
+  mutate(
+    # Converting variables to factors
+    race_recoded = factor(race_recoded, levels = c("White", "Black", "Asian American", "Latino", "AIAN", "NHPI", "Arab/MENA")),
+    age_recoded = factor(age_recoded, levels = c("18-29", "30-39", "40-49", "50-59", "60-69", "70+")),
+    educ = factor(educ, levels = c("No college experience", "Some college experience", "College graduate")),
+    rural = factor(rural, levels = c("Rural", "Urban/suburban")),
+    sex_orientation = factor(sex_orientation, levels = c("Straight", "Queer", "Refused/Don't Know"))
+  )
+
+```
+
+```{r echo=FALSE, results=FALSE}
+# Remove all redundant columns
+redundant_columns <- c("Q629R1", "Q629R2", "Q629R3", "Q629R4", 
+                       "Q629R5", "Q629R6", "Q629R7",
+                       "S2_RACE_PRIME", "S13", "S3", "S5_AGE","S14", "Q29", "Q21")
+
+dataset_clean <- dataset_clean_allvars[, !(names(dataset_clean_allvars) %in% redundant_columns)]
+```
+
+```{r echo=FALSE, results=FALSE}
+# Rename remaining columns in dataset_clean
+colnames(dataset_clean) <- c(
+  "ImportanceOfStoppingDiscriminationAgainstMinorities",  # Q1R5
+  "RacialBelonging",                                      #Q271
+  "Gender",                                               # S3B
+  "TreatedUnfairlyOrDiscriminatedAgainst",                # Q627
+  "DiscriminationImpactOnLifeSatisfaction",              # Q633
+  "PerceptionsOfDiscriminationAgainstWhites",            # Q619_Q626R1
+  "PerceptionsOfDiscriminationAgainstBlacks",            # Q619_Q626R2
+  "PerceptionsOfDiscriminationAgainstAsianAmericans",    # Q619_Q626R3
+  "PerceptionsOfDiscriminationAgainstNativeAmericans",   # Q619_Q626R4
+  "PerceptionsOfDiscriminationAgainstImmigrants",        # Q619_Q626R5
+  "PerceptionsOfDiscriminationAgainstLatinos",           # Q619_Q626R6
+  "PerceptionsOfDiscriminationAgainstGaysAndLesbians",   # Q619_Q626R7
+  "PerceptionsOfDiscriminationAgainstMuslims",           # Q619_Q626R8
+  "Education",                                           # educ
+  "SexOrientation",                                      # sex_orientation
+  "Rural",                                               # rural
+  "Race",                                                # race_recoded
+  "Age"                                                  # age_recoded
+)
+
+```
+
+```{r echo=FALSE, results=FALSE}
+# Regression model - RQ2
+base_model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ Gender +
+               TreatedUnfairlyOrDiscriminatedAgainst + 
+               DiscriminationImpactOnLifeSatisfaction +
+               PerceptionsOfDiscriminationAgainstWhites + 
+               PerceptionsOfDiscriminationAgainstBlacks +
+               PerceptionsOfDiscriminationAgainstAsianAmericans + 
+               PerceptionsOfDiscriminationAgainstNativeAmericans + 
+               PerceptionsOfDiscriminationAgainstImmigrants + 
+               PerceptionsOfDiscriminationAgainstLatinos + 
+               PerceptionsOfDiscriminationAgainstGaysAndLesbians + 
+               PerceptionsOfDiscriminationAgainstMuslims +
+               Education + 
+                 SexOrientation +
+                 Rural +
+                 Race +
+                 Age, 
+             
+             data = dataset_clean, family = "binomial")
+```
+
+```{r echo=FALSE, results=FALSE}
+# Regression Model with interaction term - RQ2
+interaction_model <- glm(ImportanceOfStoppingDiscriminationAgainstMinorities ~ 
+               TreatedUnfairlyOrDiscriminatedAgainst + 
+               DiscriminationImpactOnLifeSatisfaction +
+               PerceptionsOfDiscriminationAgainstWhites + 
+               PerceptionsOfDiscriminationAgainstBlacks +
+               PerceptionsOfDiscriminationAgainstAsianAmericans + 
+               PerceptionsOfDiscriminationAgainstNativeAmericans + 
+               PerceptionsOfDiscriminationAgainstImmigrants + 
+               PerceptionsOfDiscriminationAgainstLatinos + 
+               PerceptionsOfDiscriminationAgainstGaysAndLesbians + 
+               PerceptionsOfDiscriminationAgainstMuslims +
+               Education + 
+                 SexOrientation +
+                 Rural +
+                 Age + 
+                 Gender * Race,
+               
+             data = dataset_clean, family = "binomial")
+```
+
+```{r, echo=FALSE, results=FALSE}
+
+## Calculating Odds Ratio, Confidence Interval, and p-values (base model)
+
+# Extract odds ratios
+odds_ratios <- exp(coef(base_model))
+
+# Get confidence intervals for coefficients
+conf_intervals <- exp(confint(base_model))
+
+# Extract p-values
+p_values <- summary(base_model)$coefficients[, 4]
+
+# Combine everything into a single data frame
+results_base_model <- data.frame(
+  OddsRatio = odds_ratios,
+  LowerCI = conf_intervals[, 1],
+  UpperCI = conf_intervals[, 2],
+  PValue = p_values
+)
+
+# Display results
+results_base_model
+```
+
+```{r echo=FALSE, results=FALSE}
+# creating the analysis table for RQ2
+
+names <- c("Intercept",
+           "Gender: Women",
+           "Gender: Non-Binary",
+           "Gender: Something Else",
+           "Treated Unfairly Or Discriminated Against: No", # Yes
+           "Discrimination Impact On Life Satisfaction: Some", # A lot 
+           "Discrimination Impact On Life Satisfaction: A Little",
+           "Discrimination Impact On Life Satisfaction: Not At All",
+           "Discrimination Impact On Life Satisfaction: Don't Know",
+           "Discrimination Impact On Life Satisfaction: Refused",
+           "Perceptions Of Discrimination Against Whites: Some", # A lot 
+           "Perceptions Of Discrimination Against Whites: A Little",
+           "Perceptions Of Discrimination Against Whites: None At All",
+           "Perceptions Of Discrimination Against Whites: Don't Know",
+           "Perceptions Of Discrimination Against Blacks: Some", # A lot 
+           "Perceptions Of Discrimination Against Blacks: A Little",
+           "Perceptions Of Discrimination Against Blacks: None At All",
+           "Perceptions Of Discrimination Against Blacks: Don't Know",
+           "Perceptions Of Discrimination Against Asian Americans: Some", # A lot 
+           "Perceptions Of Discrimination Against Asian Americans: A Little",
+           "Perceptions Of Discrimination Against Asian Americans: None At All",
+           "Perceptions Of Discrimination Against Asian Americans: Don't Know",
+           "Perceptions Of Discrimination Against Native Americans: Some", # A lot 
+           "Perceptions Of Discrimination Against Native Americans: A Little",
+           "Perceptions Of Discrimination Against Native Americans: None At All",
+           "Perceptions Of Discrimination Against Native Americans: Don't Know",
+           "Perceptions Of Discrimination Against Immigrants: Some", # A lot 
+           "Perceptions Of Discrimination Against Immigrants: A Little",
+           "Perceptions Of Discrimination Against Immigrants: None At All",
+           "Perceptions Of Discrimination Against Immigrants: Don't Know",
+           "Perceptions Of Discrimination Against Latinos: Some", # A lot 
+           "Perceptions Of Discrimination Against Latinos: A Little",
+           "Perceptions Of Discrimination Against Latinos: None At All",
+           "Perceptions Of Discrimination Against Latinos: Don't Know",
+           "Perceptions Of Discrimination Against Gays And Lesbians: Some", # A lot 
+           "Perceptions Of Discrimination Against Gays And Lesbians: A Little",
+           "Perceptions Of Discrimination Against Gays And Lesbians: None At All",
+           "Perceptions Of Discrimination Against Gays And Lesbians: Don't Know",
+           "Perceptions Of Discrimination Against Muslims: Some",# A lot 
+           "Perceptions Of Discrimination Against Muslims: A Little",
+           "Perceptions Of Discrimination Against Muslims: None At All",
+           "Perceptions Of Discrimination Against Muslims: Don't Know",
+           "Education: Some College Experience", # No College Experience
+           "Education: College Graduate",
+           "Orientation: Queer", #Straight
+           "Orientation: Refused",
+           "Community Type: Urban/Suburban", # Rural
+           "Race: Black", # White
+           "Race: Asian American",
+           "Race: Latino",
+           "Race: AIAN",
+           "Race: NHPI",
+           "Race: Arab/MENA",
+           "Age: 30-39 Years", # 18-29
+           "Age: 40-49 Years",
+           "Age: 50-59 Years",
+           "Age: 60-69 Years",
+           "Age: 70+ Years"
+           )
+
+# Add row names as a new column
+analysis_table <- cbind(RowName = names, results_base_model)
+colnames(analysis_table) <- c("Description", "Odds Ratio", "Lower Confidence Interval", 
+                              "Upper Confidence Interval", "P-Value")
+
+# View the updated dataframe
+#head(analysis_table)
+```
+
+# Abstract
+
+Following the Immigration and Nationality Act of 1965, which allowed for increased immigration into the United States, the United States has become increasingly racially and ethnically diverse. However, studies of political participation and public opinion have often failed to include large samples of racial and ethnic minority Americans, limiting researchers from drawing conclusions on the attitudes of these groups. Using survey data from the 2020 Collaborative Multi-Racial Post-Election Survey, which includes oversamples of racial and ethnic minority populations in the U.S., we investigate the impact of racial identity and racism on political participation and public opinion. First, we analyze whether valuing belonging in a racial group can influence a respondent’s interest in politics. Then, we analyze how personal experiences with racism may influence how respondents value policies aimed at addressing racial and ethnic discrimination. Our findings suggest that racial group belonging may be associated with higher odds of increased political interest, while gender identity, racial identity, and party affiliation may be associated with higher levels of political interest. Additionally, gender identity, racial identity, and personal experiences with discrimination may be associated with higher odds of increased levels of support for anti-discrimination policies.
+
+# Introduction
+
+The United States is becoming increasingly racially and ethnically diverse. In the decades following the 1965 Immigration and Nationality Act, the population of Americans born outside of the U.S. increased by more than 400% \[1\]. This increased diversity was also visible in the results from the 2020 decennial U.S. Census. According to data from the 2020 U.S. Census, the share of Americans that are White alone (and do not identify as any other race or ethnicity in addition to White) has declined by approximately 9% since 2010. In addition, the population of multiracial Americans has experienced a 276% increase since the 2010 decennial Census. The percentage of people who reported multiple races increased more than all of the single-race groups, increasing from approximately 3% of the population in 2010 to 10% of the population in 2020 \[2\].
+
+As a result of these trends that have led to increased shares of non-white groups in the U.S. the electoral power of racial and ethnic minority groups has become more salient in American politics. Researchers, policymakers, and advocacy groups must understand the factors that drive political participation and issue preferences among racial and ethnic minority groups, as well as differences between groups. 
+
+Researchers commonly understand the drivers for participation in American politics through the “resource model of political participation”, popularized by Henry E. Brady, Sidney Verba and Kay Lehman Schlozman \[3\]. This theory asserts that socioeconomic status predicts political participation, with a specific focus on resources such as time, money, and the organizational skills that are used to navigate civic life (“civic skills”). However, other scholars have pushed back on the generalizability of this theory for non-white groups, as these analyses were based on studies of white Americans and their conclusions may not hold true for members of minority groups \[4\]. In this study, we analyze how racial and ethnic minority groups navigate American politics and the factors that influence their political participation and issue preference. 
+
+In a similar vein, researchers have studied whether racial and ethnic discrimination can have a causal effect on the political participation of minority communities. Recent studies on Latino Americans and Indian Americans \[5\] \[6\], have found mixed effects. We address how racial and ethnic discrimination may potentially shape the issue preferences of American voters in this study. 
+
+Our analysis focuses on two questions within the field of racial and ethnic politics. 
+
+1.  Are Americans who believe that their race is important to their identity more likely to be interested in politics than those that are not?
+
+2.  How do personal experiences with racism, in combination with demographic factors such as race, gender, and education, influence the importance respondents place on policies aimed at addressing racial and ethnic discrimination, controlling for other social and political factors?
+
+To investigate these two research questions, we used survey data from the 2020 Collaborative Multi-Racial Post-Election Survey (CMPS) \[7\]. The CMPS is an extensive dataset designed to capture perspectives across racial and ethnic groups in the United States offered in multiple languages, including English, Spanish, Chinese, Korean, Vietnamese, Arabic, Urdu, Farsi, and Haitian Creole. 
+
+# Methods
+
+The 2020 Collaborative Multi-Racial Post-Election Survey (CMPS) dataset contains 17,545 rows, with each row representing an individual respondent's data, and 1,490 columns, each capturing a specific variable or question response. These variables include demographic information and responses to survey questions on political and social issues.
+
+Prior to modelling, we conducted exploratory data analysis to examine relationships between our predictor and outcome variables. First, we created summary tables for multiple survey questions. Then, we conducted chi-square tests to understand the relationship between the categorical variables. Finally, we plotted the relationships between the outcome variables and demographic variables to account for potential differences for subgroups in our dataset. 
+
+To prepare the data, variables with over 50% missing values were excluded. Key demographic variables, including educational attainment, sexual orientation, and rurality were re-coded into simplified categories. Age and race were structured into meaningful groups. Extraneous variables were removed, and categorical variables were converted to ordered factors to ensure consistency and clarity for analysis.
+
+To model the outcome variable, interest in participating in politics, in the first research question, we will use an ordinal logistic regression with predictors including the importance of belonging to a racial group to one’s identity, race, age, educational attainment, and political party affiliation. The outcome variable has 4 ordered levels: “Not at all interested in politics”, “Not that interested in politics”, “Somewhat interested”, and “Very interested in politics”. We will also include an interaction term between gender and the importance of belonging to a racial group to one’s identity to assess whether the effect of the importance of belonging to a racial group on one’s identity differs based on one’s gender identity. To assess the model we will use a confusion matrix to compare predicted and observed values, and compare the model’s accuracy and no information rate. Finally, we will conduct a Brant test to provide additional evidence regarding whether the proportional odds assumption was violated. 
+
+For the second research question, which examines the importance placed on anti-discrimination policies, we will use a binomial logistic regression. The predictors include race, gender identity, sexual orientation, age, education, community type (i.e. rurality), experiences with racism, and perceptions of racism affecting different groups. To further explore intersectionality theory, we will develop a second model that includes an interaction term between gender and race. After identifying the better-performing model, we will evaluate its performance using a range of metrics, including the confusion matrix, accuracy, and other relevant indicators.
+
+# Results
+
+For the first research question, the outcome variable, interest in participating in politics, was modeled using ordinal logistic regression. Interest in participating in politics, an ordinal variable, captured responses to the question: “Some people are very interested in politics while other people can’t stand politics, how about you? Are you…” with response options “Very interested in politics”, “Somewhat interested”, “Not that interested in politics”, and “Not at all interested in politics.” The overall sample reported high levels of interest in politics, with 43% of respondents reporting that they were somewhat interested and one in four (25%) saying they were very interested in politics.
+
+**Table 1.1: Breakdown of respondents' interest levels in politics**
+
+|          Response to Q29          | Count  | Share of Total Respondents |
+|:---------------------------------:|:------:|:--------------------------:|
+|    Very interested in politics    | 4,306  |            25%             |
+|        Somewhat interested        | 7,612  |            43%             |
+|  Not that interested in politics  | 3,643  |            21%             |
+| Not at all interested in politics | 1,984  |            11%             |
+|               Total               | 17,545 |            100%            |
+
+The model also included the predictor variable regarding the importance of belonging to a racial group to one’s identity, a categorical variable that captured responses to the question: “How important is being \[RACIAL GROUP\] to your identity?”, with response options “Extremely important”, “Very important”, “Moderately important”, “Slightly important”, and “Not at all important”. The respondent’s identified racial group was brought into the survey question based on their prior survey responses. Over half (56%) of respondents reported that being a member of their racial group was very or extremely important to their identity. Only 23% of respondents said that being a member of their racial group was slightly or not at all important to their identity.
+
+The model included multiple predictor variables that control for the impact of other aspects of a respondent’s identity, socioeconomic status, and political preferences. These included demographics such as the primary race reported by a respondent, their age, and gender, as well as a respondent’s reported level of educational attainment and political party affiliation. Finally, the model included an interaction term between gender and the importance a respondent placed in belonging to their racial group to investigate whether the relationship between racial belonging and political interest differs depending on gender. This interaction term allows us to evaluate if the effect of racial belonging on political interest is different for males, females, non-binary respondents, or respondents who specified a different gender identity.
+
+```{r, echo=FALSE, results=FALSE}
+dataset_clean_allvars$Q271_reordered <- factor(dataset_clean_allvars$Q271,
+                            levels = c("(5) Not at all important",
+                                     "(4) Slightly important",
+                                     "(3) Moderately important",
+                                     "(2) Very important",
+                                     "(1) Extremely important"))
+dataset_clean_allvars$Q29_reordered <- factor(dataset_clean_allvars$Q29,
+                            levels = c("(4) Not at all interested in politics",
+                                     "(3) Not that interested in politics",
+                                     "(2) Somewhat interested",
+                                     "(1) Very interested in politics"), ordered=TRUE)
+
+
+ord_mod_interactions <- polr(Q29_reordered ~ Q271_reordered * S3B +
+                               race_recoded +
+                  age_recoded +
+            educ +  # Educational Attainment
+            Q21, # Party affiliation
+          data = dataset_clean_allvars, Hess=TRUE)
+
+
+
+summary(ord_mod_interactions)
+
+
+pvals_interact <- pnorm(-abs(summary(ord_mod_interactions)$coef[,"t value"]))*2
+ctable_interact <- cbind(summary(ord_mod_interactions)$coef,pvals_interact)
+
+ctable_interact
+
+(exp_coefs_interact <- exp(cbind(OR=coef(ord_mod_interactions),confint(ord_mod_interactions))))
+
+head(ord_mod_interactions$fitted.values)
+head(predict(ord_mod_interactions))
+
+confusionMatrix(predict(ord_mod_interactions), dataset_clean_allvars$Q29, mode="everything")
+
+
+brant(ord_mod_interactions)
+
+```
+
+```{r, echo=FALSE}
+odds_ratio_plot_labelled <- function(model) {
+  # Get odds ratios and CIs
+  or_data <- exp(cbind(OR=coef(model), confint(model)))
+  
+  # Calculate p-values
+  p_values <- pnorm(-abs(summary(model)$coefficients[,"t value"]))*2
+  
+  # Keep only significant variables
+  sig_indices <- p_values[names(coef(model))] < 0.05
+  or_data_sig <- or_data[sig_indices, ]
+  
+  # Create a mapping for variable names with grouping prefixes
+  rename_map <- c(
+    # Education Group
+    "educCollege graduate" = "Education: College Graduate",
+    "educSome college experience" = "Education: Some College",
+    
+    # Gender Group
+    "S3B(2) Woman" = "Gender: Woman",
+    "S3B(3) Non-binary" = "Gender: Non-binary",
+    
+    # Age Group
+    "age_recoded70+" = "Age: 70+",
+    "age_recoded60-69" = "Age: 60-69",
+    "age_recoded50-59" = "Age: 50-59",
+    
+    # Race Group
+    "race_recodedBlack" = "Race: Black",
+    "race_recodedAsian American" = "Race: Asian",
+    "race_recodedLatino" = "Race: Latino",
+    "race_recodedAIAN" = "Race: Native",
+    "race_recodedNHPI" = "Race: NHPI",
+    
+    # Racial Belonging Group
+    "Q271_reordered(2) Very important" = "Racial Belonging: Very Important",
+    "Q271_reordered(1) Extremely important" = "Racial Belonging: Extremely Important",
+    
+    # Party ID Group
+    "Q21(2) Democrat" = "Party ID: Democrat",
+    "Q21(3) Independent" = "Party ID: Independent",
+    "Q21(4) Other party" = "Party ID: Other",
+    
+    # Interactions
+    "Q271_reordered(1) Extremely important:S3B(2) Woman" = "Interaction: Racial Belonging & Gender: Woman"
+  )
+  
+  # Create a data frame for plotting
+  plot_data <- data.frame(
+    name = rename_map[rownames(or_data_sig)],
+    or = or_data_sig[,1],
+    ci_lower = or_data_sig[,2],
+    ci_upper = or_data_sig[,3],
+    stringsAsFactors = FALSE
+  )
+  
+  # Custom sorting function that sorts by the group name only
+  sort_by_group_and_name <- function(x) {
+    group_name <- sub("^\\d+\\. (.*): .*$", "\\1", x)
+    variable_name <- sub("^\\d+\\. .+: (.*)$", "\\1", x)
+    
+    # Create a data frame to help with sorting
+    sort_df <- data.frame(
+      original = x,
+      group = group_name,
+      name = variable_name,
+      stringsAsFactors = FALSE
+    )
+    
+    # Sort first by group, then by variable name
+    sort_df <- sort_df[order(sort_df$group, sort_df$name), ]
+    return(sort_df$original)
+  }
+  
+  # Sort the data
+  plot_data$name <- factor(plot_data$name,
+                          levels = rev(sort_by_group_and_name(plot_data$name)))
+  
+  # Create plot
+  ggplot(plot_data, aes(y = name)) +
+    geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 0.7) +
+    geom_point(aes(x = or), size = 3, color = "blue") +
+    geom_errorbarh(aes(xmin = ci_lower, xmax = ci_upper), height = 0.3, color = "black") +
+    theme_minimal() +
+    theme(
+      axis.text.y = element_text(size = 6, color = "black"),
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+      axis.title.x = element_text(size = 12),
+      axis.title.y = element_text(size = 12),
+      plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+      plot.caption = element_text(size = 9, face = "italic", hjust = 0.5),  # Center the caption
+      plot.margin = margin(1, 1, 1, 1, "cm"),
+      panel.grid.major.y = element_line(color = "gray90"),
+      panel.grid.minor.y = element_blank()
+    ) +
+    labs(
+      title = "Odds Ratios (Significant Variables)",
+      x = "Odds Ratio",
+      y = "Variables",
+      caption = "Fig. 1.1: Odds ratio for variables with significant associations"
+    )
+}
+
+
+# Generate the plot
+odds_ratio_plot_labelled(ord_mod_interactions)
+
+```
+
+*Note: Some variable levels are excluded due to filtering for significant variables. To view the reference level for each variable group, please see table A1 in the Appendix.*
+
+Controlling for age, gender identity, educational attainment, and party affiliation, all racial groups in our sample reported lower odds of reporting a higher level of interest in politics compared to white respondents, except for Arab, Middle East & North African (MENA) respondents. However, the effects for respondents of Arab/MENA heritage was not statistically significant. The odds of Black respondents being in a higher level of interest in politics were 0.87 times as high as White respondents (CI: 0.79-0.95). The odds of Latino respondents being in a higher level of interest in politics were 0.79 times as high as White respondents (CI: 0.72-0.87). These effects were even more pronounced for smaller racial/ethnic minority groups. Asian Americans’ odds of reporting a higher level of interest in politics were 0.60 times as high as that of White respondents (CI: 0.54-0.65).
+
+Increases in educational attainment were associated with higher odds of reporting a higher level of interest in politics. Respondents with some college experience had 1.53 times higher odds of being in a higher level of interest in politics than respondents with no college experience (CI: 1.40-1.66). Respondents who were college graduates had 2.23 times higher odds of being in a higher level of interest in politics than respondents with no college experience (CI: 2.07-2.40). This represents the strongest positive effect in our model.
+
+Respondents in older age groups had odds of being in a higher level of interest in politics that were higher than individuals ages 18-29 years old. Respondents ages 60-69 years old had 1.32 times higher odds of being in a higher level of interest in politics than respondents ages 18-29 years old (CI: 1.21-1.45). Respondents that were 70+ had 1.69 times higher odds of being in a higher level of interest in politics than respondents ages 18-29 years old (CI: 1.51-1.89).
+
+Regarding gender differences, women showed significantly lower odds of political interest compared to men (OR: 0.63, CI: 0.54-0.73). The reference group for the interaction term of the importance of racial belonging and gender identity is male respondents who reported that their belonging to a specific racial group is not at all important to their identity. Respondents who said that their belonging to a specific racial group was “Very important” to their racial identity had 1.19 times higher odds of reporting a higher level of interest in politics than this reference group (CI: 1.03-1.38). Respondents who said that their belonging to a specific racial group was “Extremely important” to their racial identity had 1.64 times higher odds than this reference group (CI: 1.42-1.90).
+
+To determine if the ordinal logistic regression model violated the proportional odds assumption, we produced a confusion matrix. The confusion matrix revealed that the model had a low level of precision, with an accuracy value of 0.4503. The model’s accuracy is slightly higher than the No Information Rate (0.4339), indicating that the model does not perform much better than a random guess based on the distribution of respondents in various levels of the outcome variable, interest in politics.
+
+The values for the sensitivity and specificity of the model for each class are present in table A4 in the Appendix. The sensitivity of the model was low (below 0.20) for the levels “Very interested in politics”, “Not that interested in politics”, and “Not at all interested in politics.” The only level with a high sensitivity value was the response option of being “Somewhat interested” in politics, which had an associated sensitivity of 0.90. These results indicate that the model struggled to correctly identify respondents who were “Very interested”, “Not that interested”, or “Not at all interested” in politics. The specificity of the model was high for each level, except for the response option of being “Somewhat interested” in politics (Specificity: 0.16), indicating that the model classified a high rate of false positives for this level, and it was potentially overly biased to predicting that respondents were “Somewhat interested” in politics. We also produced a confusion matrix for a multinomial model with the same predictor variables. The confusion matrices were very similar, providing evidence that there is not a sizable difference in performance between the ordinal model and the multinomial model. In addition, we conducted a Brant test. The Brant test result indicated that there is not strong evidence that the proportional odds assumption was violated.
+
+For the second research question, the outcome variable ‘Importance placed on stopping discrimination against racial/ethnic minorities’ was modeled using binomial logistic regression. Despite the skewed distribution of the dependent variable—74.25% of respondents considered it "Not Important"—logistic regression is robust to such imbalances.
+
+To examine factors influencing the importance of anti-discrimination policies, the model included predictors like personal experiences with racism (measured via ‘Unfair treatment or discrimination’ and its impact on life satisfaction), alongside demographic variables such as primary race, sexual orientation, gender, age, education, and community type. Variables Q629R1–Q629R7, which captured specific experiences of unfair treatment (e.g., due to race or gender), were excluded due to substantial missing data (\>52%). However, this was justified since the broader question on ‘unfair treatment or discrimination’ retained the key essence of experiences with racism.
+
+To investigate the factors influencing the importance respondents placed on anti-discrimination policies, we developed two regression models. The first, termed the "base model," excluded interaction terms. The second, the "interaction model," included an interaction term between ‘race’ and ‘gender’ to explore the principles of intersectionality theory.
+
+To evaluate multicollinearity in both models, we calculated the normalized Variance Inflation Factor (VIF) values. As detailed in Appendix Table B1, all normalized VIF values were consistently below 2, indicating robustness of both models with minimal correlation among predictors, thereby ensuring the reliability of the estimated coefficients.
+
+To further assess the goodness-of-fit for the two models, a chi-square test was conducted with their residual degrees of freedom and deviance for were as follows:
+
+-   **Base Model:** Residual Degrees of Freedom = 17,487, Residual Deviance = 17,934
+
+-   **Interaction Model:** Residual Degrees of Freedom = 17,469, Residual Deviance = 17,913
+
+The difference in deviance between the two models was 21.145 with 18 degrees of freedom, indicating the interaction model to be slightly superior. However, the p-value of 0.2722 exceeded the 0.05 significance level, suggesting that including the interaction term did not significantly improve the model fit. Consequently, the base model was selected as it was more parsimonious with comparable explanatory power. The findings from the base model revealed that personal experiences with discrimination and certain demographic factors significantly influence the importance respondents place on policies aimed at addressing racial and ethnic discrimination.
+
+```{r, echo=FALSE}
+# Filter for significant variables (p-value < 0.05)
+significant_data <- analysis_table[analysis_table$`P-Value` < 0.05, ]
+
+# Add a column for variable names to use in the plot (from the "Description" column)
+significant_data <- significant_data |>
+  mutate(Variable = Description)
+
+# Create the plot
+ggplot(significant_data, aes(x = `Odds Ratio`, y = Variable)) +
+  geom_point(size = 2.5, color = "blue") +  # Add points for odds ratios
+  geom_errorbarh(aes(xmin = `Lower Confidence Interval`, 
+                     xmax = `Upper Confidence Interval`), 
+                 height = 0.3, color = "black") +  # Add horizontal error bars
+  geom_vline(xintercept = 1, linetype = "dashed", color = "red", size = 0.7) +  # Add a vertical reference line at Odds Ratio = 1
+  labs(
+    title = "Odds Ratios (Significant Variables)",
+    x = "Odds Ratio",
+    y = "Variable",
+    caption = "Fig. 2.1: Odds ratio for variables with significant associations"
+  ) +
+  theme_minimal() +  # Minimal theme for clarity
+  theme(
+    axis.text.y = element_text(size = 6, color = "black", hjust = 1),  # Adjust y-axis text size and alignment
+    axis.title.x = element_text(size = 12),  # X-axis title
+    axis.title.y = element_text(size = 12),  # Y-axis title
+    plot.title = element_text(size = 12, face = "bold", hjust = 0.5),  # Center title
+    plot.margin = margin(1, 1, 1, 1, "cm"),  # Adjust margins
+    plot.caption = element_text(size = 7, face = "italic", hjust = 0.5),  # Center caption
+    axis.text.x = element_text(size = 8)  # X-axis text size
+  ) +
+  coord_cartesian(clip = "off")  # Ensure content stays within plot limits
+
+```
+
+As shown in Fig. 2.1, the variables with significant associations are illustrated. For reference levels of each variable group, please see Table B3 in the Appendix. Overall, gender and race emerged as the most consistent and influential predictors of prioritizing anti-discrimination policies. Women had 1.25 times higher odds of prioritizing anti-discrimination policies than men (CI: 1.16-1.35), while Black respondents had 3.53 times higher odds than White respondents (CI: 3.13-4.00). Latino and Asian American respondents had 1.74 (CI: 1.53-1.98) and 2.15 (CI: 1.89-2.45) times higher odds, respectively, to emphasize such policies compared to their White counterparts.
+
+Additionally, individuals who perceived higher levels of discrimination against racial or ethnic groups tended to prioritize anti-discrimination policies. For example, those who believed there was "a little" discrimination against Blacks were 45% less likely to prioritize these policies compared to those who saw "a lot" of discrimination (CI: 0.47-0.65). In contrast, education and sexual orientation did not have a statistically significant impact on prioritizing anti-discrimination policies. To further assess the base model, several performance metrics summarized in Appendix Table B4 and the confusion matrix below provide valuable insights into its strengths and limitations.
+
+```{r, echo=FALSE, results=FALSE}
+# Generating a prediction as binary values (0 or 1), where:
+## 1 indicates a predicted probability greater than 0.5 (positive class, "Important").
+## 0 indicates a predicted probability less than or equal to 0.5 (negative class, "Not important").
+model_prediction <- ifelse(predict(base_model, 
+                                   newdata = dataset_clean, 
+                                   type = "response") > 0.5, 1, 0)
+
+
+# Converting the predictions factors
+## 0 Not important, 1 Important
+model_prediction_factor <- factor(model_prediction, 
+                                  levels = c(0, 1), 
+                                  labels = c("Not important", "Important"))  # Adjusting labels
+
+# Convert the response variable to a factor with matching levels
+response_factor <- factor(dataset_clean$ImportanceOfStoppingDiscriminationAgainstMinorities,
+                          levels = c("Not important", "Important"))  # Ensuring matching order
+
+# Checking if factors are identical (you can uncomment this to check the levels)
+# levels(model_prediction_factor)
+# levels(response_factor)
+
+# Generate confusion matrix (if needed)
+confmatrix_base <- confusionMatrix(table(model_prediction_factor, response_factor),
+                positive = "Important",
+                mode = "everything")
+```
+
+**Table 2.1: Confusion Matrix**
+
+|                        |                   |               |
+|:----------------------:|:-----------------:|:-------------:|
+| **Predicted / Actual** | **Not Important** | **Important** |
+|   **Not Important**    |       12361       |     3812      |
+|     **Important**      |        666        |      706      |
+
+Overall, the model performed well in identifying respondents who did not prioritize anti-discrimination policies ("Not Important"), as evidenced by its high specificity of 94.89%. However, the sensitivity for the "Important" class was notably low at 15.63%, indicating that the model struggled to accurately classify a substantial proportion of respondents who prioritize these policies. This imbalance underscores a significant limitation in identifying the minority class. While the precision for the "Important" class was moderate at 51.46%, the F1 score of 0.2397 highlighted the model's poor overall performance in addressing this class effectively.
+
+The Area Under the Curve (AUC) value of 0.72 (see Fig. 2.2 below) indicates a moderate capacity to discriminate between the two classes, though it fell short of an optimal level. Additionally, the balanced accuracy of 55.26% reflects the model's challenges in addressing the effects of class imbalance.
+
+```{r, echo=FALSE}
+# Generate predicted probabilities (not just binary predictions) from the model
+model_probabilities <- predict(base_model, newdata = dataset_clean, type = "response")
+
+# Calculate ROC curve
+roc_curve <- roc(response_factor, model_probabilities)
+
+# Calculate AUC (Area Under the Curve)
+auc_value <- auc(roc_curve)
+
+# Adjust plot margins to make room for the caption below
+par(mar = c(5, 4, 4, 5))  # Keep the right margin moderate
+
+# Plot ROC curve
+plot(roc_curve, main = "ROC Curve", col = "blue", lwd = 2)
+legend("bottomright", legend = paste("AUC =", round(auc_value, 3)), col = "blue", lwd = 2)
+
+# Add the figure label outside the plot below
+mtext("Fig. 2.2: ROC Curve", side = 1, line = 4, cex = 0.9, font = 3, adj = 0)  # Adjust the line parameter
+```
+
+Although the model achieved statistical significance as indicated by McNemar’s test in Appendix Table B4 (p-value \< 2e-16), its predictive performance remains suboptimal, with predictions deviating considerably from observed data. While the model demonstrates strong performance in identifying respondents who do not prioritize anti-discrimination policies, its ability to accurately predict those who do prioritize these policies is markedly limited.
+
+# Conclusion
+
+In this analysis, we investigated whether valuing belonging in a racial group can influence a respondent’s interest in politics. We found that the higher levels of importance an individual placed in belonging to their specific racial group (reporting that belonging to their group was “Very important” or “Extremely important”) had a significant positive effect on their interest in politics when compared to male respondents who did not place a high level of importance on belonging to their specific racial group. Further research is needed to understand how an individual’s racial belonging can impact their political participation. Following the resource model of participation, age and increases in educational attainment appeared to be associated with higher odds of reporting a higher level of interest in politics. Individuals who graduated from college had much higher odds of reporting a higher level of interest in politics than individuals with no college experience. This follows findings that educational attainment can lead to increases in political participation \[8\], and that older Americans vote at higher rates than younger Americans \[9\].
+
+For our second question, we analyzed how personal experiences with racism influence respondents' prioritization of policies addressing racial and ethnic discrimination. Our findings highlight the significant impact of race, gender, and lived experiences with discrimination, as well as the critical role of perceptions of racism against various groups in shaping public attitudes. These results underscore the complex social dynamics that drive policy preferences and provide valuable insights for designing targeted advocacy and policy efforts to address the unique experiences and needs of marginalized communities.
+
+Despite the value of this survey’s oversamples of racial minorities, some limitations were present in our study. For the first analysis, we used educational attainment as a proxy for socioeconomic status. This is a common practice in social sciences \[10\]. Further research on the influence of socioeconomic status on political participation for racial minorities would help us understand if the resource model of participation is generalizable to other groups in the U.S. Both models had low specificity, suggesting that they struggled to correctly identify cases where respondents had low levels of political interest or respondents who considered anti-discrimination policies to be important. Similarly, in our second research question, while the model effectively identified respondents who do not prioritize anti-discrimination policies, it struggled to predict those who do. This imbalance underscores the challenges of accurately modeling the minority class—respondents who view anti-discrimination policies as important—and highlights the need for more nuanced approaches to capture these perspectives.
+
+Overall, these challenges and opportunities highlight the importance of disaggregated data and further research in partnership with small racial and ethnic minority communities. Future work on political participation and public opinion among racial and ethnic minorities could support researchers, policymakers, and advocates in designing more inclusive policies and interventions. By addressing these gaps, future research can better capture the diverse and intersectional realities of minority groups and contribute to more effective advocacy and policy efforts.
+
+\newpage
+
+# References
+
+1.  Noe-Bustamante, A. B., Christine Tamir, Lauren Mora and Luis. (2020, August 20). Facts on U.S. immigrants, 2018. Pew Research Center. https://www.pewresearch.org/race-and-ethnicity/2020/08/20/facts-on-u-s-immigrants/
+2.  Jones, N., Marks, R., Ramirez, R., & Rios-Vargas, M. (2021, August 12). Improved Race and Ethnicity Measures Reveal U.S. Population Is Much More Multiracial. The United States Census Bureau. https://www.census.gov/library/stories/2021/08/improved-race-ethnicity-measures-reveal-united-states-population-much-more-multiracial.html
+3.  Brady, H. E., Verba, S., & Schlozman, K. L. (1995). Beyond Ses: A Resource Model of Political Participation. The American Political Science Review, 89(2), 271–294. https://doi.org/10.2307/2082425
+4.  Leighley, J. E. (2021). Strength in Numbers? Princeton University Press.
+5.  Besco, R., Garcia-Rios, S., Lagodny, J., Lajevardi, N., Oskooii, K., & Tolley, E. (2022). Fight not flight: The effects of explicit racism on minority political engagement. Electoral Studies, 80, 102515. https://doi.org/10.1016/j.electstud.2022.102515
+6.  Wood, Z. J., & John-Henderson, N. A. (2024). Perceived discrimination, political efficacy, and political participation in American Indian adults. Frontiers in Political Science, 6. https://doi.org/10.3389/fpos.2024.1328521
+7.  Frasure, Lorrie, Wong, Janelle, Vargas, Edward, and Barreto, Matt. Collaborative Multi-racial Post-election Survey (CMPS), United States, 2020. Inter-university Consortium for Political and Social Research \[distributor\], 2024-06-11. https://doi.org/10.3886/ICPSR39096.v1
+8.  Kim, Y. (2023). Absolutely Relative: How Education Shapes Voter Turnout in the United States. Social Indicators Research, 168(1-3), 447–469. https://doi.org/10.1007/s11205-023-03146-1
+9.  McDonald, M. (n.d.). Voter Turnout Demographics \[Review of Voter Turnout Demographics\]. U.S. Elections Project. Retrieved December 13, 2024, from https://www.electproject.org/election-data/voter-turnout-demographics
+10. Oakes, M. (n.d.). Measuring Socioeconomic Status 1. Learning Objectives. https://obssr.od.nih.gov/sites/obssr/files/Measuring-Socioeconomic-Status.pdf
+
+\newpage
+
+# Appendix
+
+## Research Question 1
+
+**Table A1: Reference levels for variables**
+
+|              **Variable Group**               |    **Reference Level**    |
+|:----------------------------------:|:----------------------------------:|
+|                   Education                   |   No college experience   |
+|                    Gender                     |            Man            |
+|                      Age                      |      18-29 years old      |
+|                     Race                      |           White           |
+|               Racial Belonging                |   Not At All Important    |
+|                   Party ID                    |        Republican         |
+| Interaction: Racial Belonging & Gender: Woman | Man, Not At All Important |
+
+**Table A2: Ordinal Model Statistics**
+
+|                           |    **Metric**    |
+|:-------------------------:|:----------------:|
+|         Accuracy          |      0.4503      |
+|          95% CI           | (0.4429, 0.4577) |
+| No Information Rate (NIR) |      0.4339      |
+|  P Value \[Acc \> NIR\]   |    6.105e-06     |
+|           Kappa           |      0.0787      |
+|  Mcnemar's Test P-Value   |    \<2.2e-16     |
+
+**Table A3: Confusion Matrix**
+
+|   | **Actual - Very interested in politics** | **Actual -Somewhat interested** | **Actual - Not that interested in politics** | **Actual - Not at all interested in politics** |
+|:-------------:|:-------------:|:-------------:|:-------------:|:-------------:|
+| **Predicted - Very interested in politics** | 650 | 505 | 120 | 31 |
+| **Predicted - Somewhat interested** | 3567 | 6830 | 3202 | 1550 |
+| **Predicted - Not that interested in politics** | 57 | 181 | 203 | 186 |
+| **Predicted - Not at all interested in politics** | 32 | 96 | 118 | 217 |
+
+**Table A4: Statistics by Class**
+
+|   | **Very interested in politics** | **Somewhat interested** | **Not that interested in politics** | **Not at all interested in politics** |
+|:-------------:|:-------------:|:-------------:|:-------------:|:-------------:|
+| **Sensitivity** | 0.15095 | 0.8973 | 0.05572 | 0.10938 |
+| **Specificity** | 0.95045 | 0.1625 | 0.96950 | 0.98419 |
+| **Balanced Accuracy** | 0.55070 | 0.5299 | 0.51261 | 0.54678 |
+
+**Table A5: Odds Ratio Table**
+
+| **Variable** | **Odds Ratio** | **2.5% (Confidence Interval)** | **97.5% (Confidence Interval)** |
+|:----------------:|:----------------:|:----------------:|:----------------:|
+| Racial Belonging: Slightly important | 0.9672589 | 0.811845068 | 1.1525850 |
+| Racial Belonging: Moderately important | 0.9776608 | 0.845556718 | 1.1303745 |
+| Racial Belonging: Very important | 1.1952004 | 1.033019394 | 1.3828451 |
+| Racial Belonging: Extremely important | 1.6474969 | 1.423670208 | 1.9066091 |
+| Gender: Woman | 0.6294256 | 0.540015144 | 0.7336072 |
+| Gender: Non-binary | 1.8576658 | 1.002509318 | 3.4617409 |
+| Gender: Something else (Specify) | 2.1359493 | 0.377740111 | 13.5124525 |
+| Race: Black | 0.8676620 | 0.790376010 | 0.9524806 |
+| Race: Asian American | 0.5945609 | 0.541964870 | 0.6522143 |
+| Race: Latino | 0.7946622 | 0.575235415 | 0.7848896 |
+| Race: AIAN | 0.6719204 | 1.27404185 | 1.7384045 |
+| Race: NHPI | 0.5606006 | 0.458205702 | 0.6860792 |
+| Race: Arab/MENA | 1.1589043 | 0.899447122 | 1.4956228 |
+| Age: 30-39 | 1.0310801 | 0.946696738 | 1.0563119 |
+| Age: 40-49 | 0.9247623 | 0.98549367 | 1.1229868 |
+| Age: 50-59 | 1.0979487 | 1.000027913 | 1.2054892 |
+| Age: 60-69 | 1.3238874 | 1.205240800 | 1.4542874 |
+| Age: 70+ | 1.6896464 | 1.510226543 | 1.8907050 |
+| Education: Some college experience | 1.5264694 | 1.402573135 | 1.6614197 |
+| Education: College graduate | 2.2337286 | 2.072162224 | 2.4081069 |
+| Party ID: Democrat | 1.1333513 | 1.045765624 | 1.2282275 |
+| Party ID: Independent | 0.5806653 | 0.533801211 | 0.6315870 |
+| Party ID: Other party | 0.2127592 | 0.182654104 | 0.2477198 |
+| Racial Belonging: Slightly important: Gender: Woman | 0.9955364 | 0.782564309 | 1.2663323 |
+| Racial Belonging: Moderately important: Gender: Woman | 0.9461281 | 0.780040309 | 1.1475378 |
+| Racial Belonging: Very important: Gender: Woman | 0.9791675 | 0.810674379 | 1.1826356 |
+| Racial Belonging: Extremely important: Gender: Woman | 0.8114102 | 0.674275440 | 0.9763646 |
+| Racial Belonging: Slightly important: Gender: Non-binary | 0.6505015 | 0.198565161 | 2.1505278 |
+| Racial Belonging: Moderately important: Gender: Non-binary | 0.6563254 | 0.249594245 | 1.7277048 |
+| Racial Belonging: Very important: Gender: Non-binary | 0.5140828 | 0.205132143 | 1.2905898 |
+| Racial Belonging: Extremely important: Gender: Non-binary | 0.8770903 | 0.354410521 | 2.1835545 |
+| Racial Belonging: Slightly important Gender: Something else (Specify) | 0.2279084 | 0.023857021 | 2.0164000 |
+| Racial Belonging: Moderately important: Gender: Something else (Specify) | 1.7158304 | 0.146865519 | 19.7516328 |
+| Racial Belonging: Very important: Gender: Something else (Specify) | 0.1049752 | 0.006213617 | 1.4210951 |
+| Racial Belonging: Extremely important: Gender: Something else (Specify) | 0.6584933 | 0.079780177 | 4.9850479 |
+
+## Research Question 2
+
+```{r, echo=FALSE, results=FALSE}
+# Check multicollinearity using VIF
+vif_base <- vif(base_model)
+vif_interaction <- vif(interaction_model)
+```
+
+**Table B1: Normalized VIF Values**
+
+|   | **Normalized VIF: Base Model** | **Normalized VIF: Interaction Model** |
+|:----------------------:|:----------------------:|:----------------------:|
+| Gender | 1.022 | 1.978 |
+| Treated Unfairly or Discriminated Against | 1.125 | 1.126 |
+| Discrimination Impact on Life Satisfaction | 1.036 | 1.037 |
+| Perceptions Of Discrimination Against Whites | 1.105 | 1.106 |
+| Perceptions Of Discrimination Against Blacks | 1.329 | 1.329 |
+| Perceptions Of Discrimination Against Asian Americans | 1.308 | 1.308 |
+| Perceptions Of Discrimination Against Native Americans | 1.224 | 1.224 |
+| Perceptions Of Discrimination Against Immigrants | 1.357 | 1.359 |
+| Perceptions Of Discrimination Against Latinos | 1.370 | 1.371 |
+| Perceptions Of Discrimination Against Gays and Lesbians | 1.262 | 1.262 |
+| Perceptions Of Discrimination Against Muslims | 1.341 | 1.342 |
+| Education | 1.058 | 1.060 |
+| Orientation | 1.042 | 1.044 |
+| Community Type | 1.017 | 1.018 |
+| Age | 1.028 | 1.030 |
+| Race | 1.027 | 1.725 |
+| Gender \* Race |  | 1.308 |
+
+**Table B2: Odds Ratios**
+
+| **Description** | **Odds Ratio** | **Lower Confidence Interval** | **Upper Confidence Interval** | **P-Value** |
+|:-------------:|:-------------:|:-------------:|:-------------:|:-------------:|
+| Intercept | 0.1695 | 0.1300 | 0.2203 | 9.84e-40 |
+| Gender: Women | 1.2507 | 1.1598 | 1.3490 | 6.41e-9 |
+| Gender: Non-Binary | 1.3434 | 0.9160 | 1.9517 | 1.25e-1 |
+| Gender: Something Else | 1.6771 | 0.7294 | 3.6061 | 2.00e-1 |
+| Treated Unfairly Or Discriminated Against: No | 0.8970 | 0.8270 | 0.9730 | 8.79e-3 |
+| Discrimination Impact On Life Satisfaction: Some | 1.0452 | 0.8981 | 1.2172 | 5.69e-1 |
+| Discrimination Impact On Life Satisfaction: A Little | 1.0053 | 0.8701 | 1.1626 | 9.43e-1 |
+| Discrimination Impact On Life Satisfaction: Not At All | 0.7362 | 0.6337 | 0.8561 | 6.58e-5 |
+| Discrimination Impact On Life Satisfaction: Don't Know | 0.8978 | 0.7439 | 1.0831 | 2.61e-1 |
+| Discrimination Impact On Life Satisfaction: Refused | 0.8404 | 0.5695 | 1.2177 | 3.69e-1 |
+| Perceptions Of Discrimination Against Whites: Some | 1.0698 | 0.8812 | 1.3012 | 4.97e-1 |
+| Perceptions Of Discrimination Against Whites: A Little | 1.4965 | 1.2609 | 1.7824 | 4.94e-6 |
+| Perceptions Of Discrimination Against Whites: None At All | 2.0482 | 1.7390 | 2.4214 | 2.00e-17 |
+| Perceptions Of Discrimination Against Whites: Don't Know | 1.5124 | 1.1525 | 1.9811 | 2.74e-3 |
+| Perceptions Of Discrimination Against Blacks: Some | 0.6710 | 0.6023 | 0.7472 | 4.00e-13 |
+| Perceptions Of Discrimination Against Blacks: A Little | 0.5524 | 0.4684 | 0.6504 | 1.32e-12 |
+| Perceptions Of Discrimination Against Blacks: None At All | 0.5423 | 0.4191 | 0.6979 | 2.52e-6 |
+| Perceptions Of Discrimination Against Blacks: Don't Know | 0.3797 | 0.2609 | 0.5475 | 3.00e-7 |
+| Perceptions Of Discrimination Against Asian Americans: Some | 0.8667 | 0.7825 | 0.9599 | 6.05e-3 |
+| Perceptions Of Discrimination Against Asian Americans: A Little | 0.7756 | 0.6799 | 0.8845 | 1.52e-4 |
+| Perceptions Of Discrimination Against Asian Americans: None At All | 0.7710 | 0.6188 | 0.9580 | 1.97e-2 |
+| Perceptions Of Discrimination Against Asian Americans: Don't Know | 0.8565 | 0.6102 | 1.1936 | 3.65e-1 |
+| Perceptions Of Discrimination Against Native Americans: Some | 1.1117 | 0.9991 | 1.2372 | 5.22e-2 |
+| Perceptions Of Discrimination Against Native Americans: A Little | 1.0371 | 0.9143 | 1.1763 | 5.71e-1 |
+| Perceptions Of Discrimination Against Native Americans: None At All | 0.8500 | 0.7074 | 1.0193 | 8.11e-2 |
+| Perceptions Of Discrimination Against Native Americans: Don't Know | 0.8513 | 0.6600 | 1.0930 | 2.11e-1 |
+| Perceptions Of Discrimination Against Immigrants: Some | 0.9502 | 0.8560 | 1.0548 | 3.38e-1 |
+| Perceptions Of Discrimination Against Immigrants: A Little | 0.8910 | 0.7621 | 1.0410 | 1.47e-1 |
+| Perceptions Of Discrimination Against Immigrants: None At All | 0.9524 | 0.7299 | 1.2371 | 7.17e-1 |
+| Perceptions Of Discrimination Against Immigrants: Don't Know | 1.0978 | 0.7820 | 1.5323 | 5.86e-1 |
+| Perceptions Of Discrimination Against Latinos: Some | 0.9670 | 0.8689 | 1.0763 | 5.39e-1 |
+| Perceptions Of Discrimination Against Latinos: A Little | 0.9118 | 0.7873 | 1.0559 | 2.18e-1 |
+| Perceptions Of Discrimination Against Latinos: None At All | 0.7300 | 0.5653 | 0.9387 | 1.50e-2 |
+| Perceptions Of Discrimination Against Latinos: Don't Know | 0.8705 | 0.6080 | 1.2386 | 4.45e-1 |
+| Perceptions Of Discrimination Against Gays And Lesbians: Some | 0.9924 | 0.8987 | 1.0959 | 8.80e-1 |
+| Perceptions Of Discrimination Against Gays And Lesbians: A Little | 0.9305 | 0.8106 | 1.0677 | 3.05e-1 |
+| Perceptions Of Discrimination Against Gays And Lesbians: None At All | 0.9859 | 0.8012 | 1.2100 | 8.93e-1 |
+| Perceptions Of Discrimination Against Gays And Lesbians: Don't Know | 1.2728 | 0.9666 | 1.6698 | 8.35e-3 |
+| Perceptions Of Discrimination Against Muslims: Some | 0.9928 | 0.8937 | 1.1029 | 8.93e-1 |
+| Perceptions Of Discrimination Against Muslims: A Little | 1.0623 | 0.9122 | 1.2364 | 4.36e-1 |
+| Perceptions Of Discrimination Against Muslims: None At All | 1.0402 | 0.8131 | 1.3261 | 7.52e-1 |
+| Perceptions Of Discrimination Against Muslims: Don't Know | 0.8257 | 0.5955 | 1.1374 | 2.46e-1 |
+| Education: Some College Experience | 0.9806 | 0.8774 | 1.0959 | 7.30e-1 |
+| Education: College Graduate | 0.9402 | 0.8514 | 1.0387 | 2.24e-1 |
+| Sexual Orientation: Queer | 1.1197 | 0.9914 | 1.2632 | 6.73e-2 |
+| Sexual Orientation: Refused | 0.8894 | 0.6647 | 1.1760 | 4.20e-1 |
+| Community Type: Urban/Suburban | 1.0465 | 0.9079 | 1.2090 | 5.34e-1 |
+| Race: Black | 3.5331 | 3.1265 | 3.9983 | 4.83e-90 |
+| Race: Asian American | 2.1506 | 1.8896 | 2.4504 | 7.08e-31 |
+| Race: Latino | 1.7392 | 1.5267 | 1.9831 | 1.09e-16 |
+| Race: AIAN | 1.2235 | 0.9679 | 1.5365 | 8.69e-2 |
+| Race: NHPI | 2.1618 | 1.6465 | 2.8179 | 1.81e-8 |
+| Race: Arab/MENA | 2.6661 | 1.9547 | 3.6127 | 3.71e-10 |
+| Age: 30-39 Years | 0.9447 | 0.8443 | 1.0569 | 3.21e-1 |
+| Age: 40-49 Years | 0.8969 | 0.7937 | 1.0132 | 8.08e-2 |
+| Age: 50-59 Years | 0.9589 | 0.8476 | 1.0845 | 5.05e-1 |
+| Age: 60-69 Years | 0.8891 | 0.7833 | 1.0089 | 6.88e-2 |
+| Age: 70+ Years | 1.0035 | 0.8612 | 1.1681 | 9.64e-1 |
+
+**Table B3: Reference Levels**
+
+| **Variable Group** | **Reference Level** |
+|:----------------------------------:|:----------------------------------:|
+| Education | No college experience |
+| Gender | Man |
+| Age | 18-29 years old |
+| Race | White |
+| Community Type | Rural |
+| Sexual Orientation | Straight |
+| Treated Unfairly/Discriminated Against | Yes |
+| Discrimination Impact on Life Satisfaction | A lot |
+| Perceptions of Discrimination Against Whites | A lot |
+| Perceptions of Discrimination Against Blacks | A lot |
+| Perceptions of Discrimination Against Asian Americans | A lot |
+| Perceptions of Discrimination Against Native Americans | A lot |
+| Perceptions of Discrimination Against Immigrants | A lot |
+| Perceptions of Discrimination Against Latinos | A lot |
+| Perceptions of Discrimination Against Gays and Lesbians | A lot |
+| Perceptions of Discrimination Against Muslims | A lot |
+
+**Table B4: Summary Statistics**
+
+|                           | **Metric** |
+|:-------------------------:|:----------:|
+|   Sensitivity (Recall)    |   0.1563   |
+|        Specificity        |   0.9489   |
+|         Precision         |   0.5146   |
+|            F1             |   0.2397   |
+|     Balanced Accuracy     |   0.5526   |
+| No Information Rate (NIR) |   0.7425   |
+|           Kappa           |   0.1361   |
+|  Mcnemar's Test P-Value   |  \<2e-16   |

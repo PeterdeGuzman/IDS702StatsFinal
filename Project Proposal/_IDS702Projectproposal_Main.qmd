@@ -1,0 +1,381 @@
+---
+title: "Project Proposal"
+author: "Peter de Guzman, Sizhe Chen, Jennifer Li, Nakiyah Dhariwala"
+subtitle: "Due November 17 at 11:59pm"
+format: pdf
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+#### Load Packages
+
+```{r load-packages, message = FALSE, warning = FALSE, echo=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(ggridges)
+library(readxl)
+library(formattable)
+library(scales)
+```
+
+# Dataset 1 (top choice)
+
+**Data source:** The 2020 Collaborative Multi-racial Post-Election
+Survey (CMPS)
+
+**Brief description:** The survey has an unweighted sample size of
+17,545 respondents. Each row represents a unique respondent. The data is
+collected through an online survey with 800 unique questions. The
+survey's main focus is on attitudes about the 2020 Election and
+candidates, experiences with racism, policy attitudes, immigration, and
+personal experiences with civic engagement across many facets of
+American life.
+
+The 2020 CMPS was offered in English, Spanish, Chinese (simplified),
+Chinese (traditional), Korean, Vietnamese, Arabic, Urdu, Farsi and
+Haitian Creole. The survey dataset includes Black, White, Latino and
+Asian respondents as well as additional oversamples of respondents from
+hard-to-reach populations including, Afro-Latinos, Black immigrants,
+Native Americans, Native Hawaiians, Muslims and people who identify as
+LGBTQ.
+
+**Research question 1:** Are Americans who believe their race is
+important to their identity more likely to be interested in politics
+than those that are not?
+
+-   Outcome variable (include the name/description and type of
+    variable): The outcome variable is an ordinal variable labeled Q29.
+    The survey question is "Some people are very interested in politics
+    while other people can't stand politics how about you? are you...".
+    The response options are in a five-point scale from "Not at all
+    interested in politics" to "Very interested in politics."
+
+The main predictor variable is "Q271" which asks “How important is being
+\[RACIAL GROUP\] to your identity?”. The response options are a
+five-point scale from "Not at all important" to "Extremely important".
+Other potential predictors include survey questions on respondent's
+self-perception of race and discrimination, and their own attitudes
+towards other racial groups. In addition, there are multiple variables
+that could be used as demographic controls such as age, gender,
+education, income, and party identification. The variables not shown in
+the output include responses to the rest of the 800 survey questions,
+covering topics such as policy attitudes, civic engagement, and
+political participation.
+
+**Variable Type**: Ordinal
+
+**Research question 2:** Controlling for other demographic variables
+such as age and gender, how do experiences with racism influence the
+importance respondents place on policy issues related to racial and
+ethnic discrimination?
+
+-   Outcome variable (include the name/description and type of
+    variable): Stopping discrimination against racial/ethnic minorities
+    (Q1R5) — a binary variable indicating whether respondents view it as
+    an important issue.
+
+**Variable Type:** Binary.
+
+**Interaction Term Idea:** Include an interaction term between
+race/ethnicity (S2RACER) and experiences with racism to see if the
+influence of racism experiences differs across racial/ethnic groups.
+
+**Load the data and provide a `glimpse()`**:
+
+```{r data-1, warning=FALSE, echo=FALSE}
+rm(list=ls())
+load("39096-0001-Data.rda")
+data <- da39096.0001
+reordered_data <- data %>% relocate(Q29, Q271, WEIGHT, 
+                                    AGE1_HID, AGE2_HID, .after = DATE)
+reordered_data %>% slice_head(n = 50) %>% str()
+```
+
+\newpage
+
+**Exploratory Plots:**
+Dataset 1: Research Question 1
+```{r plots-1.1, echo=FALSE, warning=FALSE}
+data <- data %>% mutate(Q29_shortened = case_when(
+  Q29 == "(1) Very interested in politics" ~ "Very interested",
+                                                   
+  Q29 == "(2) Somewhat interested" ~ "Somewhat interested",
+                                                   
+  Q29 == "(3) Not that interested in politics" ~ "Not that interested",
+                                                   
+  Q29 == "(4) Not at all interested in politics" ~ 
+    "Not at all interested", .default = "Other"))
+
+
+wtd_tableQ29 <- data %>% count(Q29_shortened, wt=WEIGHT)
+wtd_tableQ29 <- wtd_tableQ29 %>% mutate('pct' = (n/sum(n, na.rm=TRUE)))
+ggplot(wtd_tableQ29, aes(x=Q29_shortened, y = pct)) +
+  geom_bar(stat="identity", fill = "orange") +
+  geom_text(aes(label=percent(pct)), vjust=1.6, color="white", size =3.5) +
+  labs(title = "Reported Interest in Politics", 
+       x = "Level of Interest", y = "Percent (Weighted)") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+contingency_table <- table(data$Q29_shortened, data$Q271)
+contingency_df <- as.data.frame(contingency_table)
+contingency_df <- contingency_df %>% mutate(Share = (Freq/sum(Freq)))
+
+ggplot(contingency_df, aes(x = Var1, y = Var2, fill = Share)) +
+  geom_tile() +
+  labs(title="Interest in Politics and Racial Identity", 
+       x = "Interest in Politics", 
+       y = "Importance of Racial Identity") +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.4, vjust = 0.5)) +
+  scale_fill_continuous(low = "white", high = "blue", labels = percent_format(scale = 100)) 
+```
+
+\newpage
+Dataset 1: Research Question 2
+```{r plots-1.2, echo=FALSE, warning=FALSE}
+
+data$Q1R5_cleaned <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", data$Q1R5))
+data$Q1R5_cleaned <- factor(data$Q1R5_cleaned, levels = c(0, 1), labels = c("Not Important", "Important"))
+
+# Plot the distribution of Q1R5
+ggplot(data, aes(x = Q1R5_cleaned)) +
+  geom_bar(fill = "skyblue") +
+  labs(title = "Importance of Stopping Racial Discrimination",
+       x = "Importance Level",
+       y = "Count") +
+  theme_minimal()
+
+data$MAIN_ETH_QUOTA_numeric <- as.numeric(sub("^\\((\\d+)\\).*", "\\1", 
+                                              data$MAIN_ETH_QUOTA))
+data$Race_Ethnicity <- factor(data$MAIN_ETH_QUOTA_numeric,
+                              levels = 1:7,
+                              labels = c("White", "Latino", "Black", 
+                                         "AAPI", "ANAI", "MENA", "NH"))
+
+# Plot with short-term race labels on the x-axis and percent labels on the bars
+ggplot(data, aes(x = Race_Ethnicity, fill = Q1R5_cleaned)) +
+  geom_bar(position = "fill") +
+  labs(title = "Importance of Stopping Discrimination by Race/Ethnicity",
+       x = "Race/Ethnicity",
+       y = "Proportion",
+       fill = "Importance Level",
+       caption = "Race/Ethnicity Abbreviations: ANAI = Native American, NH = Native Hawaiian, AAPI = Asian American/Pacific Islander, MENA = Middle Eastern/North African") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal() 
+```
+
+\newpage
+
+# Dataset 2
+
+**Data source:** Global Health Observatory (GHO) data repository under
+the World Health Organization (WHO), with additional economic data
+sourced from the United Nations website.
+https://www.kaggle.com/datasets/kumarajarshi/life-expectancy-who
+
+**Brief description:** There are 2938 rows and 22 columns, representing
+health and social/economic indicators for 193 countries over 15 years.
+Each row corresponds to a specific country-year combination.
+
+**Research question 1:** How does the number of years a person spends in school 
+influence whether a country is classified as developed or developing?
+
+-   Outcome variable (include the name/description and type of
+    variable): "Status" --\> Binary variable that categorizes countries
+    into "Developed" or "Developing."
+
+**Research question 2:** How do factors such as life expectancy,
+education, healthcare expenditure, and population affect GDP across
+developing countries?
+
+-   Outcome variable (include the name/description and type of
+    variable): GDP: Numeric Variable
+
+**Load the data and provide a `glimpse()`**:
+
+```{r data-2, warning=FALSE, echo=FALSE}
+data <- read.csv("Life Expectancy Data.csv")
+glimpse(data)
+```
+
+\newpage
+
+**Exploratory Plots:**
+Dataset 2: Research Question 1
+```{r plots-2.1, echo=FALSE, warning=FALSE}
+# Bar chart showing the counts of each Status
+ggplot(data, aes(x = Status, fill = Status)) +
+  geom_bar(alpha = 0.8) +
+  labs(
+    title = "Distribution of Countries by Status",
+    x = "Country Status",
+    y = "Number of Countries",
+    fill = "Country Status"
+  ) +
+  theme_minimal()
+
+# Ridge plot for Schooling
+ggplot(data, aes(x = Schooling, y = Status, fill = Status)) +
+  geom_density_ridges(alpha = 0.7) +
+  labs(
+    title = "Distribution of years of schooling by Country Status",
+    x = "Schooling",
+    y = "Country Status"
+  ) +
+  theme_minimal()
+```
+
+\newpage
+Dataset 2: Research Question 2
+```{r plots-2.2, echo=FALSE, warning=FALSE}
+developing_data <- subset(data, Status == "Developing")
+
+# Histogram showing the distribution of GDP
+ggplot(developing_data, aes(x = GDP)) +
+  geom_histogram(binwidth = 100, 
+                 fill = "skyblue", 
+                 color = "black", 
+                 alpha = 0.7) +
+  labs(title = "Distribution of GDP",
+       x = "GDP",
+       y = "Frequency") + theme_minimal()
+
+# 
+ggplot(developing_data, aes(x = Schooling, y = GDP)) +
+  geom_point(color = "blue", size = 2, alpha = 0.5) +
+  labs(title = "Relationship Between years of education and GDP",
+       x = "Years of education",
+       y = "GDP") + theme_minimal()
+```
+
+\newpage
+
+# Dataset 3 (optional)
+
+**Data source:**
+https://www.kaggle.com/datasets/prasoonkottarathil/polycystic-ovary-syndrome-pcos
+
+**Brief description:** Each row in the dataset represents data of a
+female. Specifically, it contains medical, physical, hormonal, and
+lifestyle information collected for that woman as part of a study on
+PCOS (Polycystic Ovary Syndrome) and related health metrics.
+
+**Research question 1:** - What combination of physical characteristics
+(e.g., BMI, waist-hip ratio), hormonal factors (e.g., AMH, FSH/LH
+ratio), and symptoms (e.g., pimples, hair loss) significantly predict
+PCOS status (Y/N)?
+
+-   Outcome variable (include the name/description and type of
+    variable): PCOS Status
+
+Categorical (Binary: 1 = Has PCOS, 0 = Does not have PCOS) -
+Description: Indicates whether the individual has PCOS or not.
+
+**Research question 2:** How do physical factors and hormonal factors
+levels influence Hb (hemoglobin) levels?
+
+-   Outcome variable (include the name/description and type of
+    variable): Hb (Hemoglobin) Levels
+
+-   Type: Continuous (measured in g/dL)
+
+-   Description:The concentration of hemoglobin in the blood, which can
+    be an indicator of overall health, anemia, and other medical
+    conditions.
+
+**Load the data and provide a `glimpse()`**:
+
+```{r data-3, warning=FALSE, echo=FALSE}
+data <- read_excel("PCOS_data_without_infertility.xlsx", sheet = 2)
+glimpse(data)
+data <- data %>%
+  rename(PCOS = `PCOS (Y/N)`, 
+         Weight=`Weight (Kg)`, 
+         Hb=`Hb(g/dl)`)
+data$PCOS <- ifelse(data$PCOS == 1, "Yes", "No")
+data$PCOS <- factor(data$PCOS, levels = c("No", "Yes"))
+```
+
+\newpage
+
+**Exploratory Plots:**
+Dataset 3: Research Question 1
+```{r plots-3.1, echo=FALSE}
+# Summarize data
+pcos_summary <- data %>%
+  count(PCOS)
+
+# Create the pie chart
+ggplot(pcos_summary, aes(x = "", y = n, fill = PCOS)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  labs(title = "PCOS Distribution") +
+  theme_void() +
+  scale_fill_manual(values = c("skyblue", "salmon"))
+
+# Boxplot comparing Weight by PCOS status
+ggplot(data, aes(x = PCOS, y = Weight, fill = PCOS)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot of Weight by PCOS Status",
+    x = "PCOS Status (1 = Yes, 0 = No)",
+    y = "Weight (kg)"
+  ) +
+  # Custom x-axis labels
+  scale_x_discrete(labels = c("0" = "No", "1" = "Yes")) +  
+  scale_fill_manual(values = c("#F8766D", "#00BFC4")) +    
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+\newpage
+
+Dataset 3: Research Question 2
+```{r plots-3.2, echo=FALSE}
+# Histogram of Hb levels
+ggplot(data, aes(x = Hb)) +
+  geom_histogram(binwidth = 0.5, 
+                 fill = "#00BFC4", 
+                 color = "black", 
+                 alpha = 0.7) +
+  labs(title = "Histogram of Hb (Hemoglobin) Levels",
+       x = "Hemoglobin (g/dL)", 
+       y = "Frequency") +
+  theme_minimal()
+
+
+# Line plot of BMI and Hb with regression line
+ggplot(data, aes(x = `PRL(ng/mL)`, y = Hb)) +
+  geom_point(color = "#00BFC4", size = 3) +  # Points for BMI vs Hb
+  geom_smooth(method = "lm", color = "blue", se = FALSE) +
+  labs(
+    title = "Line Plot of PRL(ng/mL) vs Hb (Hemoglobin) Levels",
+    x = "PRL(ng/mL)",
+    y = "Hemoglobin (g/dL)") +
+  theme_minimal()
+```
+
+\newpage
+
+# Team Charter
+
+#### When will you meet as a team to work on the project components? Will these meetings be held in person or virtually?
+-   We will meet virtually (i.e through Zoom) every 7 days in the initial phase.
+    However, near the deadline, we will aim to meet every 2 days and
+    give updates on our individual tasks.
+    
+#### What is your group policy on missing team meetings (e.g., how much advance notice should be provided)?
+
+-   Given that we are all juggling multiple projects/deadline, we can
+    miss a meeting provided we give a 24 hour notice and follow-up with
+    what we miss in the meetings and do the work that we are assigned
+
+#### How will your team communicate (email, Slack, text messages)? What is your policy on appropriate response time (within a certain number of hours? Nights/weekends?)?
+
+-   Our main form of communication would be WhatsApp.
+-   We are not obligated to respond in the night, however if we are
+    required to respond in the day, a half day buffer is acceptable

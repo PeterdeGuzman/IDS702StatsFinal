@@ -8,10 +8,7 @@ as race, gender, and education, influence the importance respondents place on po
 aimed at addressing racial and ethnic discrimination, controlling for other social and
 political factors?
 To investigate these two research questions, we used survey data from the 2020 Collaborative
-Multi-Racial Post-Election Survey (CMPS) [7]. The CMPS is an extensive dataset designed
-to capture perspectives across racial and ethnic groups in the United States offered in multiple
-languages, including English, Spanish, Chinese, Korean, Vietnamese, Arabic, Urdu, Farsi, and
-Haitian Creole.
+Multi-Racial Post-Election Survey (CMPS). 
 
 # Methods
 
